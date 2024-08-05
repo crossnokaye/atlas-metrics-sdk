@@ -133,7 +133,7 @@ class MetricsReader:
         except Exception as e:
             raise Exception(f"Error listing points for facility {facility.display_name}: {e}")
 
-        if len(point_map) != len(aliases):
+        if len(set(point_map.keys())) != len(set(aliases)):
             not_found = set(aliases) - set(point_map.keys())
             raise Exception(f"Points {not_found} not found for facility {facility.short_name}")
 
