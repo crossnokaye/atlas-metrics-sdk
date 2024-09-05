@@ -7,6 +7,10 @@ from .atlas_client import AtlasClient, HourlyRates
 class RateFilter(BaseModel):
     facilities: List[str]
 
+class HourlyRate(BaseModel):
+    start: datetime
+    rate: float
+
 class RatesReader:
     """
     High level API Client for retrieving energy rates from the ATLAS platform.
@@ -54,11 +58,13 @@ class RatesReader:
             start = datetime.now() - timedelta(days=1)
         if end is None:
             end = datetime.now()
-        result = {}
 
+        result = {}
         for f in facilities:
             try:
-                result[f.short_name] = self.client.get_hourly_rates(f.organization_id, f.agents[0].agent_id, start, end)
+                result[f.short_name] = {k: [HourlyRate(start=datetime.fromtimestamp(d.start), rate=d.rate) for d in v]
+                                        for k,v in self.client.get_hourly_rates(f.organization_id, f.agents[0].agent_id, start, end)}
+
             except Exception as e:
                 raise Exception(f"Error retrieving rates for facility {f.display_name}: {e}")
 
