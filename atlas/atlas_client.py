@@ -1,5 +1,5 @@
 from .http_client import AtlasHTTPClient, AtlasHTTPError
-from .models import AggregateBy, Facility, Device, HistoricalValues, HourlyRates
+from .models import AggregateBy, Facility, Device, HistoricalValues, HourlyRates, Deployment
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 
@@ -50,7 +50,7 @@ class AtlasClient:
 
         return [Facility(**facility) for facility in facilities]
 
-    def list_devices(self, org_id: str, agent_id: str) -> List[Device]:
+    def list_devices(self, org_id: str, agent_id: str, version: str | None = None) -> List[Device]:
         """
         List all devices for a given facility.
 
@@ -60,6 +60,8 @@ class AtlasClient:
             organization ID associated with the facility as returned by list_facilities
         agent_id : str
             agent ID associated with the facility as returned by list_facilities
+        version : str | None, optional
+            blueprint version of the devices to return, by default None gets the latest but not neccesarily the latest deployed version
         
         Returns
         -------
@@ -72,8 +74,10 @@ class AtlasClient:
             Raised if an error occurs while making the request
         """
         url = f"/orgs/{org_id}/agents/{agent_id}/devices"
+        params = { "version": version } if version else {}
+
         try:
-            response = self.client.request("GET", url)
+            response = self.client.request("GET", url, params=params)
             devices = response.json()
         except ValueError as e:
             raise AtlasHTTPError(f"{e}, got {response}", response=response)
@@ -237,3 +241,45 @@ class AtlasClient:
             raise Exception(f"Facilities {', '.join(not_found)} not found")
 
         return facilities
+
+    def get_current_deployment(
+            self,
+            org_id: str,
+            agent_id: str,
+    ) -> Deployment:
+        """
+        Get the current deployment for a given facility.
+
+        Parameters
+        ----------
+        org_id : str
+            organization ID associated with the facility as returned by list_facilities
+        agent_id : str
+            agent ID associated with the facility as returned by list_facilities
+
+        Returns
+        -------
+        Dict
+            Current deployment information
+
+        Raises
+        ------
+        AtlasHTTPError
+            Raised if an error occurs while making the request
+        """
+        url = f"/orgs/{org_id}/agents/{agent_id}/site-narratives/deployments/current"
+        try:
+            response = self.client.request("GET", url)
+            response_json = response.json()
+        except ValueError as e:
+            raise AtlasHTTPError(f"{e}, got {response}", response=response)
+
+        try:
+            return Deployment(
+                id=response_json["id"],
+                agent_id=response_json["agent_id"],
+                facility_id=response_json["org_id"],
+                blueprint_version=response_json["blueprint"]["version"]
+            )
+        except KeyError as e:
+            raise AtlasHTTPError(f"Error parsing deployment: {e}, got {response_json}", response=response)

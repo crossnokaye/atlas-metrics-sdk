@@ -22,7 +22,7 @@ def list_devices(debug: bool = False) -> DeviceList:
     Return the device across all facilities indexed by facility name, then by
     device kind as well as a dictionary of all devices indexed by device ID.
     """
-    client = AtlasClient(debug)
+    client = AtlasClient(debug=debug)
     try:
         facilities = client.list_facilities()
     except Exception as e:
@@ -36,7 +36,9 @@ def list_devices(debug: bool = False) -> DeviceList:
             continue
         device_map = defaultdict(list)
         try:
-            devices = client.list_devices(facility.organization_id, facility.agents[0].agent_id)
+            # Get active deployment
+            deployment = client.get_current_deployment(facility.organization_id, facility.agents[0].agent_id)
+            devices = client.list_devices(facility.organization_id, facility.agents[0].agent_id, str(deployment.blueprint_version))
         except Exception as e:
             print(f"Error listing devices for facility {facility.display_name}: {e}")
             continue

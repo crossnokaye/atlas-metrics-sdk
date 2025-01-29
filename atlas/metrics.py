@@ -4,7 +4,7 @@ import re
 from typing import Dict, List, Optional
 from pydantic import BaseModel
 from .atlas_client import AtlasClient
-from .models import DeviceMetric, is_valid_metric
+from .models import DeviceMetric, is_valid_metric, Facility, Device, Deployment
 
 class Filter(BaseModel):
     facilities: List[str]
@@ -77,7 +77,8 @@ class MetricsReader:
         result = defaultdict(list)
         for facility in facilities:
             agent_id = facility.agents[0].agent_id
-            devices = self._get_devices(facility, agent_id)
+            deployment = self._get_current_deployment(facility, agent_id)
+            devices = self._get_devices(facility, agent_id, deployment.blueprint_version)
 
             for device in devices:
                 metrics_filter = [metric for metric in filter.metrics if metric.device_kind == device.kind]
@@ -97,9 +98,12 @@ class MetricsReader:
 
         return result
 
-    def _get_devices(self, facility, agent_id: str) -> List:
+    def _get_current_deployment(self, facility: Facility, agent_id: str) -> Deployment:
+        return self.client.get_current_deployment(facility.organization_id, agent_id)
+
+    def _get_devices(self, facility: Facility, agent_id: str, blueprint_version: int) -> List[Device]:
         try:
-            return self.client.list_devices(facility.organization_id, agent_id)
+            return self.client.list_devices(facility.organization_id, agent_id, str(blueprint_version))
         except Exception as e:
             raise Exception(f"Error listing devices for facility {facility.display_name}: {e}")
 
