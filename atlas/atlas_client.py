@@ -259,13 +259,15 @@ class AtlasClient:
 
         Returns
         -------
-        Dict
-            Current deployment information
+        Deployment
+            Current Deployment at the facility including active blueprint version
 
         Raises
         ------
         AtlasHTTPError
             Raised if an error occurs while making the request
+        KeyError
+            Raised if an error occurs while parsing the response
         """
         url = f"/orgs/{org_id}/agents/{agent_id}/site-narratives/deployments/current"
         try:
