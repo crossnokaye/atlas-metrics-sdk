@@ -22,7 +22,7 @@ def list_devices(debug: bool = False) -> DeviceList:
     Return the device across all facilities indexed by facility name, then by
     device kind as well as a dictionary of all devices indexed by device ID.
     """
-    client = AtlasClient(debug)
+    client = AtlasClient(debug=debug)
     try:
         facilities = client.list_facilities()
     except Exception as e:

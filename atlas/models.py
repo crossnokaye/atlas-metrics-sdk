@@ -113,6 +113,12 @@ device_metric_mapping = {
     DeviceKind.vessel: VesselMetric
 }
 
+class Deployment(BaseModel):
+    id: str
+    agent_id: str
+    organization_id: str
+    blueprint_version: int
+
 def is_valid_metric(metric: DeviceMetric) -> bool:
     """
     Check if the metric is valid for the given device kind.
