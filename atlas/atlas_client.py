@@ -279,7 +279,7 @@ class AtlasClient:
             return Deployment(
                 id=response_json["id"],
                 agent_id=response_json["agent_id"],
-                facility_id=response_json["org_id"],
+                organization_id=response_json["org_id"],
                 blueprint_version=response_json["blueprint"]["version"]
             )
         except KeyError as e:

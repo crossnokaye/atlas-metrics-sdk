@@ -116,7 +116,7 @@ device_metric_mapping = {
 class Deployment(BaseModel):
     id: str
     agent_id: str
-    facility_id: str
+    organization_id: str
     blueprint_version: int
 
 def is_valid_metric(metric: DeviceMetric) -> bool:
