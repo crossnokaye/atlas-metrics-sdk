@@ -50,9 +50,9 @@ class AtlasClient:
 
         return [Facility(**facility) for facility in facilities]
 
-    def list_devices(self, org_id: str, agent_id: str, version: str | None = None) -> List[Device]:
+    def list_devices(self, org_id: str, agent_id: str) -> List[Device]:
         """
-        List all devices for a given facility.
+        List all devices for a given facility. Uses the active deployment to get the devices.
 
         Parameters
         ----------
@@ -60,8 +60,6 @@ class AtlasClient:
             organization ID associated with the facility as returned by list_facilities
         agent_id : str
             agent ID associated with the facility as returned by list_facilities
-        version : str | None, optional
-            blueprint version of the devices to return, by default None gets the latest but not neccesarily the latest deployed version
         
         Returns
         -------
@@ -73,8 +71,9 @@ class AtlasClient:
         AtlasHTTPError
             Raised if an error occurs while making the request
         """
+        active_deployment = self._get_current_deployment(org_id, agent_id)
         url = f"/orgs/{org_id}/agents/{agent_id}/devices"
-        params = { "version": version } if version else {}
+        params = { "version": active_deployment.blueprint_version }
 
         try:
             response = self.client.request("GET", url, params=params)
@@ -242,7 +241,7 @@ class AtlasClient:
 
         return facilities
 
-    def get_current_deployment(
+    def _get_current_deployment(
             self,
             org_id: str,
             agent_id: str,
