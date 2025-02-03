@@ -52,7 +52,7 @@ class AtlasClient:
 
     def list_devices(self, org_id: str, agent_id: str) -> List[Device]:
         """
-        List all devices for a given facility. Uses the active deployment to get the devices.
+        List all devices for a given facility. Uses the current deployment to get the devices.
 
         Parameters
         ----------
