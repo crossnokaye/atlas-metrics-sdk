@@ -3,14 +3,14 @@
 ## Overview
 
 The ATLAS Metrics SDK is a Python library that provides a simple interface for
-retrieving metrics from the (ATLAS platform)[https://crossnokaye.com].  The
+retrieving metrics from the [ATLAS platform](https://crossnokaye.com).  The
 library provides both high-level and low-level APIs, allowing users to choose
 the appropriate level of abstraction based on their needs. The high-level API
 simplifies usage, while the low-level API offers more flexibility and control.
 
 ## Requirements
 
-- Python 3.11 or higher
+- Python 3.11 or later
 
 ## Installation
 
@@ -103,14 +103,14 @@ Filter(
 The list of available device kinds and metric names are listed in the `atlas` package
 [models.py](atlas/models.py) file.
 
-The list of availble facilities and their short names can be retrieved using the 
+The list of availble facilities and their short names can be retrieved using the
 `list_facilities.py` example.
 
 Additionally a `DeviceMetric` can be configured with a regular expression to
 match property aliases. For example the following filter retrieves the motor
 current for all compressors:
 
-```python 
+```python
 Filter(metrics=[DeviceMetric(
     device_kind=DeviceKind.compressor,
     alias_regexp=".*_motorCurrent"
