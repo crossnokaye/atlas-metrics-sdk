@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "atlas-metrics"
 version = "0.0.1"
 description = "Python API Client for retrieving metric point values from the Atlas platform."
+requires-python = ">=3.11"
 dependencies = [
     "httpx",
     "orjson",

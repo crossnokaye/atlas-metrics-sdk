@@ -8,6 +8,10 @@ library provides both high-level and low-level APIs, allowing users to choose
 the appropriate level of abstraction based on their needs. The high-level API
 simplifies usage, while the low-level API offers more flexibility and control.
 
+## Requirements
+
+- Python 3.11 or higher
+
 ## Installation
 
 1. Clone the repository:
