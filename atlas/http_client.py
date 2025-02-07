@@ -1,19 +1,24 @@
+import logging
+import tomllib
 from datetime import datetime, timedelta
 from os import environ
 from pathlib import Path
 from typing import Optional, Union
 from urllib.parse import urljoin
-import logging, requests, tomllib
+
+import requests
 
 
 class AtlasConfigError(Exception):
     """Custom exception class for configuration errors."""
+
     def __init__(self, message):
         self.message = message
 
 
 class AuthError(Exception):
     """Custom exception class for authentication errors."""
+
     def __init__(self, message, response):
         self.message = message
         self.response = response
@@ -21,13 +26,13 @@ class AuthError(Exception):
 
 class AtlasHTTPError(requests.HTTPError):
     """Custom exception class for HTTP errors."""
+
     def __init__(self, message, response=None):
         super().__init__(message)
         self.response = response
 
 
 class AtlasHTTPClient(requests.Session):
-
     BASE_URL = "https://atlaslive.io"
     LOGIN_ENDPOINT = "/api/login/v2/login"
     USERINFO_ENDPOINT = "/api/login/v2/userinfo"
@@ -69,13 +74,11 @@ class AtlasHTTPClient(requests.Session):
             logger = logging.getLogger("requests.packages.urllib3")
             logger.setLevel(logging.DEBUG)
             logger.propagate = True
-        
+
     def get_user_id(self):
         return self._user_id
 
-    def _get_refresh_token(
-        self, refresh_token: Union[str, None]
-    ) -> str:
+    def _get_refresh_token(self, refresh_token: Union[str, None]) -> str:
         """
         Parameters
         ----------
@@ -104,16 +107,13 @@ class AtlasHTTPClient(requests.Session):
 
         if not self.DEFAULT_CONFIG_FILE_PATH.exists():
             raise AtlasConfigError(
-                f"""No refresh token provided, and ATLAS config file not found at {
-                self.DEFAULT_CONFIG_FILE_PATH}"""
+                f"""No refresh token provided, and ATLAS config file not found at {self.DEFAULT_CONFIG_FILE_PATH}"""
             )
 
         with open(self.DEFAULT_CONFIG_FILE_PATH, "rb") as fn:
             atlas_config_file = tomllib.load(fn)
 
-        refresh_token = atlas_config_file.get("production", {}).get(
-            self.REFRESH_TOKEN, None
-        )
+        refresh_token = atlas_config_file.get("production", {}).get(self.REFRESH_TOKEN, None)
         if not refresh_token:
             raise AtlasConfigError(
                 f"""could not find refresh token for ATLAS" in
@@ -153,11 +153,12 @@ class AtlasHTTPClient(requests.Session):
                     response=response_json,
                 )
             self._expires_at = datetime.now() + timedelta(seconds=expires_in)
-            userinfo = requests.get(self._userinfo_url, headers={self.AUTHORIZATION: f"{self.BEARER} {self._access_token}"})
+            userinfo = requests.get(
+                self._userinfo_url, headers={self.AUTHORIZATION: f"{self.BEARER} {self._access_token}"}
+            )
             userinfo.raise_for_status()
             data = userinfo.json()
             self._user_id = data.get("sub", None)
-
 
     def request(self, method: str, url: str, **kwargs) -> requests.Response:
         """
@@ -184,9 +185,7 @@ class AtlasHTTPClient(requests.Session):
             self.refresh_access_token()
 
             # call the underlying request method
-            kwargs[self.HEADERS] = {
-                self.AUTHORIZATION: f"{self.BEARER} {self._access_token}"
-            }
+            kwargs[self.HEADERS] = {self.AUTHORIZATION: f"{self.BEARER} {self._access_token}"}
             response = super().request(method, self._api_url_prefix + url, **kwargs)
             response.raise_for_status()
         except requests.HTTPError as ex:

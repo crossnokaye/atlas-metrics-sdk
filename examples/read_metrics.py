@@ -1,7 +1,11 @@
-import orjson, os, sys
+import os
+import sys
+
+import orjson
 from pydantic import BaseModel
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from atlas import MetricsReader, Filter, DeviceMetric, DeviceKind, CompressorMetric
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from atlas import CompressorMetric, DeviceKind, DeviceMetric, Filter, MetricsReader
 
 """
 This example retrieves the suction pressure and motor current for all
@@ -9,7 +13,7 @@ compressors in the given facilities over the past 10 minutes and prints the
 average values for each minute.
 """
 json_output = "--json" in sys.argv
-debug ="--debug" in sys.argv
+debug = "--debug" in sys.argv
 facilities = sys.argv[1:]
 if not facilities:
     print("Usage: python read_metrics.py <facility1> <facility2> ...")
@@ -19,7 +23,7 @@ device_kind = DeviceKind.compressor
 metric_name = CompressorMetric.suction_pressure
 
 compressor_suction_pressure = DeviceMetric(device_kind=device_kind, name=metric_name)
-motor_current = DeviceMetric(device_kind=device_kind, alias_regex='.*_motorCurrent')
+motor_current = DeviceMetric(device_kind=device_kind, alias_regex=".*_motorCurrent")
 filter = Filter(facilities=facilities, metrics=[compressor_suction_pressure, motor_current])
 values = MetricsReader(debug=debug).read(filter)
 

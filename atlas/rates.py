@@ -1,11 +1,15 @@
 from datetime import datetime, timedelta
-import re
 from typing import Dict, List, Optional
+
+from dateutil import tz
 from pydantic import BaseModel
+
 from .atlas_client import AtlasClient, HourlyRates
+
 
 class RateFilter(BaseModel):
     facilities: List[str]
+
 
 class RatesReader:
     """
@@ -26,7 +30,9 @@ class RatesReader:
         """
         self.client = AtlasClient(refresh_token=refresh_token, debug=debug)
 
-    def read(self, filter: RateFilter, start: Optional[datetime] = None, end: Optional[datetime] = None) -> Dict[str, HourlyRates]:
+    def read(
+        self, filter: RateFilter, start: Optional[datetime] = None, end: Optional[datetime] = None
+    ) -> Dict[str, HourlyRates]:
         """
         Retrieve hourly energy rates for a given filter and time range.
 
@@ -43,7 +49,7 @@ class RatesReader:
         -------
         Dict[str, HourlyRates]
             Dictionary of energy rates indexed by facility short name.
-        
+
         Raises
         ------
         Exception
@@ -51,9 +57,9 @@ class RatesReader:
         """
         facilities = self.client.filter_facilities(filter.facilities)
         if start is None:
-            start = datetime.now() - timedelta(days=1)
+            start = datetime.now(tz.UTC) - timedelta(days=1)
         if end is None:
-            end = datetime.now()
+            end = datetime.now(tz.UTC)
         result = {}
 
         for f in facilities:

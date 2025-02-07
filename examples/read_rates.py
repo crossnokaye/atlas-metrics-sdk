@@ -1,11 +1,15 @@
 import os
 import sys
-import orjson
 from datetime import datetime
+
+import orjson
 from pydantic import BaseModel
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from typing import List
-from atlas import RatesReader, RateFilter, HourlyRates
+
+from atlas import HourlyRates, RateFilter, RatesReader
+
 
 def print_rates(title: str, rates: List[HourlyRates]):
     if rates:
@@ -13,12 +17,13 @@ def print_rates(title: str, rates: List[HourlyRates]):
         for rate in rates:
             print(f"  {datetime.fromtimestamp(rate.start).strftime('%Y-%m-%d %H:%M:%S')}: {rate.rate}")
 
+
 """
 This example retrieves the past 24 hours of rates for the given facility and
 prints the rates.
 """
 json_output = "--json" in sys.argv
-debug ="--debug" in sys.argv
+debug = "--debug" in sys.argv
 facilities = sys.argv[1:]
 if not facilities:
     print("Usage: python read_rates.py <facility1> <facility2> ...")

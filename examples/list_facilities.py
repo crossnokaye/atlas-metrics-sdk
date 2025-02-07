@@ -1,10 +1,14 @@
-import os, sys, orjson
+import os
+import sys
+
+import orjson
 from pydantic import BaseModel
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from atlas import AtlasClient
 
 json_output = "--json" in sys.argv
-debug ="--debug" in sys.argv
+debug = "--debug" in sys.argv
 
 client = AtlasClient(debug)
 facilities = client.list_facilities()
