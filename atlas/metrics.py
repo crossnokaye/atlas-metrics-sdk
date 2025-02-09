@@ -6,8 +6,8 @@ from typing import Dict, List, Optional
 from dateutil import tz
 from pydantic import BaseModel
 
-from .atlas_client import AtlasClient
-from .models import Device, DeviceMetric, Facility, HistoricalValues, is_valid_metric
+from atlas.atlas_client import AtlasClient
+from atlas.models import Device, DeviceMetric, Facility, HistoricalValues, is_valid_metric
 
 
 class Filter(BaseModel):

@@ -3,8 +3,8 @@ from typing import Dict, List, Optional
 
 from dateutil import tz
 
-from .http_client import AtlasHTTPClient, AtlasHTTPError
-from .models import (
+from atlas.http_client import AtlasHTTPClient, AtlasHTTPError
+from atlas.models import (
     AggregateBy,
     Deployment,
     Device,

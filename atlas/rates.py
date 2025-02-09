@@ -4,7 +4,8 @@ from typing import Dict, List, Optional
 from dateutil import tz
 from pydantic import BaseModel
 
-from .atlas_client import AtlasClient, HourlyRates
+from atlas.atlas_client import AtlasClient
+from atlas.models import HourlyRates
 
 
 class RateFilter(BaseModel):
