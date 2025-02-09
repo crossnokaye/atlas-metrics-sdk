@@ -4,7 +4,15 @@ from typing import Dict, List, Optional
 from dateutil import tz
 
 from .http_client import AtlasHTTPClient, AtlasHTTPError
-from .models import AggregateBy, Deployment, Device, Facility, HistoricalValues, HourlyRates
+from .models import (
+    AggregateBy,
+    Deployment,
+    Device,
+    Facility,
+    HistoricalHourlyRates,
+    HistoricalValues,
+    HourlyRates,
+)
 
 
 class AtlasClient:
@@ -220,7 +228,7 @@ class AtlasClient:
 
         Returns
         -------
-        Rates
+        HourlyRates
             hourly rates
 
         Raises
@@ -247,7 +255,7 @@ class AtlasClient:
         }
         try:
             response = self.client.request("GET", url, params=params)
-            return HourlyRates(**response.json())
+            return HistoricalHourlyRates(**response.json()).to_hourly_rates()
         except ValueError as e:
             raise AtlasHTTPError(f"{e}, got {response}", response=response)
 

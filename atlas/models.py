@@ -1,6 +1,8 @@
+from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Union
 
+from dateutil import tz
 from pydantic import BaseModel
 
 
@@ -74,8 +76,20 @@ class HistoricalValues(BaseModel):
 
 
 class HourlyRate(BaseModel):
+    start: datetime
+    rate: float
+
+
+class HistoricalHourlyRate(BaseModel):
     start: int
     rate: float
+
+    @property
+    def start_datetime(self) -> datetime:
+        return datetime.fromtimestamp(self.start, tz=tz.UTC)
+
+    def to_hourly_rate(self) -> HourlyRate:
+        return HourlyRate(start=self.start_datetime, rate=self.rate)
 
 
 class HourlyRates(BaseModel):
@@ -84,6 +98,23 @@ class HourlyRates(BaseModel):
     time_of_use_demand_charge: List[HourlyRate] = []
     day_ahead_market_rate: List[HourlyRate] = []
     real_time_market_rate: List[HourlyRate] = []
+
+
+class HistoricalHourlyRates(BaseModel):
+    usage_rate: List[HistoricalHourlyRate] = []
+    maximum_demand_charge: List[HistoricalHourlyRate] = []
+    time_of_use_demand_charge: List[HistoricalHourlyRate] = []
+    day_ahead_market_rate: List[HistoricalHourlyRate] = []
+    real_time_market_rate: List[HistoricalHourlyRate] = []
+
+    def to_hourly_rates(self) -> HourlyRates:
+        return HourlyRates(
+            usage_rate=[rate.to_hourly_rate() for rate in self.usage_rate],
+            maximum_demand_charge=[rate.to_hourly_rate() for rate in self.maximum_demand_charge],
+            time_of_use_demand_charge=[rate.to_hourly_rate() for rate in self.time_of_use_demand_charge],
+            day_ahead_market_rate=[rate.to_hourly_rate() for rate in self.day_ahead_market_rate],
+            real_time_market_rate=[rate.to_hourly_rate() for rate in self.real_time_market_rate],
+        )
 
 
 class DeviceKind(str, Enum):
