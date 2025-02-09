@@ -3,11 +3,10 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from dateutil import tz
 from pydantic import BaseModel
 
 from .atlas_client import AtlasClient
-from .models import DeviceMetric, is_valid_metric
+from .models import Device, DeviceMetric, Facility, HistoricalValues, is_valid_metric
 
 
 class Filter(BaseModel):
@@ -24,6 +23,7 @@ class MetricValues(BaseModel):
     metric: DeviceMetric
     device_name: str
     device_alias: str
+    aggregation: str
     values: List[MetricValue]
 
 
@@ -47,7 +47,12 @@ class MetricsReader:
         self.client = AtlasClient(refresh_token=refresh_token, debug=debug)
 
     def read(
-        self, filter: Filter, start: Optional[datetime] = None, end: Optional[datetime] = None, interval: int = 60
+        self,
+        filter: Filter,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+        interval: int = 60,
+        aggregate_by: List[str] = ["avg"],
     ) -> Dict[str, List[MetricValues]]:
         """
         Retrieve metric values for a given filter and time range.
@@ -63,6 +68,9 @@ class MetricsReader:
             End time of the historical values, by default now.
         interval : int, optional
             Sampling interval in seconds, by default 60.
+        aggregate_by: List of strings, optional.
+            Aggregation function to use over the interval, defaults to "avg".
+            Available agg functions are listed in the /models.AggregateBy class
 
         Returns
         -------
@@ -100,19 +108,19 @@ class MetricsReader:
                 aliases = [af["alias"] for af in alias_filters]
 
                 point_map = self._get_point_ids(facility, agent_id, aliases)
-                hvalues = self._get_historical_values(facility, agent_id, point_map, start, end, interval)
+                hvalues = self._get_historical_values(facility, agent_id, point_map, start, end, interval, aggregate_by)
 
                 self._process_historical_values(result, facility, device, alias_filters, point_map, hvalues)
 
         return result
 
-    def _get_devices(self, facility, agent_id: str) -> List:
+    def _get_devices(self, facility: Facility, agent_id: str) -> List[Device]:
         try:
             return self.client.list_devices(facility.organization_id, agent_id)
         except Exception as e:
             raise Exception(f"Error listing devices for facility {facility.display_name}: {e}")
 
-    def _get_alias_filters(self, device, metrics: List[DeviceMetric]) -> List[Dict[str, str]]:
+    def _get_alias_filters(self, device: Device, metrics: List[DeviceMetric]) -> List[Dict[str, str]]:
         properties = device.properties
 
         # Extract metric names and regex patterns
@@ -133,7 +141,7 @@ class MetricsReader:
         filters.extend(regex_filters)
         return filters
 
-    def _get_point_ids(self, facility, agent_id: str, aliases: List[str]) -> Dict[str, str]:
+    def _get_point_ids(self, facility: Facility, agent_id: str, aliases: List[str]) -> Dict[str, str]:
         if not aliases:
             raise Exception(f"No aliases found for facility {facility.short_name}")
         try:
@@ -141,7 +149,7 @@ class MetricsReader:
         except Exception as e:
             raise Exception(f"Error listing points for facility {facility.display_name}: {e}")
 
-        if len(point_map) != len(aliases):
+        if len(set(point_map.keys())) != len(set(aliases)):
             not_found = set(aliases) - set(point_map.keys())
             raise Exception(f"Points {not_found} not found for facility {facility.short_name}")
 
@@ -149,49 +157,55 @@ class MetricsReader:
 
     def _get_historical_values(
         self,
-        facility,
+        facility: Facility,
         agent_id: str,
         point_map: Dict[str, str],
         start: Optional[datetime],
         end: Optional[datetime],
         interval: int,
-    ):
+        aggregate_by: List[str],
+    ) -> List[HistoricalValues]:
         try:
             return self.client.get_historical_values(
-                facility.organization_id, agent_id, list(point_map.values()), start, end, interval
+                facility.organization_id, agent_id, list(point_map.values()), start, end, interval, aggregate_by
             )
         except Exception as e:
             raise Exception(f"Error retrieving historical values for facility {facility.display_name}: {e}")
 
     def _process_historical_values(
         self,
-        result: defaultdict,
-        facility,
-        device,
+        result: defaultdict[str, List[MetricValues]],
+        facility: Facility,
+        device: Device,
         alias_filters: List[Dict[str, str]],
         point_map: Dict[str, str],
-        hvalues: List,
-    ):
+        hvalues: List[HistoricalValues],
+    ) -> None:
         for agvalues in hvalues:
             point_id = agvalues.point_id
             point_alias = next((alias for alias, pid in point_map.items() if pid == point_id), None)
             point_filter = next((af["filter"] for af in alias_filters if af["alias"] == point_alias), None)
-            point_values = agvalues.values["avg"]
 
-            if point_values.analog:
-                vals, timestamps = point_values.analog.values, point_values.analog.timestamps
-            elif point_values.discrete:
-                vals, timestamps = point_values.discrete.values, point_values.discrete.timestamps
-            else:
-                vals, timestamps = [], []
+            for agg in agvalues.values.keys():
+                # for agg in aggregations:
+                point_values = agvalues.values[agg]
 
-            metrics_values = MetricValues(
-                metric=DeviceMetric(name=point_filter, device_kind=device.kind),
-                device_name=device.name,
-                device_alias=device.alias,
-                values=[
-                    MetricValue(timestamp=datetime.fromtimestamp(ts, tz=tz.UTC), value=val)
-                    for ts, val in zip(timestamps, vals)
-                ],
-            )
+                if point_values.analog:
+                    vals, timestamps = point_values.analog.values, point_values.analog.timestamps
+                elif point_values.discrete:
+                    vals, timestamps = point_values.discrete.values, point_values.discrete.timestamps
+                else:
+                    vals, timestamps = [], []
+
+                metrics_values = MetricValues(
+                    metric=DeviceMetric(name=point_filter, device_kind=device.kind),
+                    device_name=device.name,
+                    device_alias=device.alias,
+                    aggregation=agg,
+                    values=[
+                        MetricValue(timestamp=datetime.fromtimestamp(ts), value=val)
+                        for ts, val in zip(timestamps, vals)
+                    ],
+                )
+
             result[facility.short_name].append(metrics_values)
