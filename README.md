@@ -117,7 +117,7 @@ Filter(metrics=[DeviceMetric(
 )
 ```
 
-### Example Usage
+### Example Usage 1
 
 ```python
 from datetime import datetime
@@ -149,7 +149,7 @@ start and end dates.
 A filter can specify multiple facilities for which to retrieve rates, if not specified
 `read` returns rates for all facilities the user has access to.
 
-### Example Usage
+### Example Usage 2
 
 ```python
 from datetime import datetime
@@ -172,7 +172,7 @@ interacting with the ATLAS platform. This class allows for more complex
 operations and greater control over the API interactions. The class also
 provides access to hourly energy rates.
 
-### Example Usage
+### Example Usage 3
 
 ```Python
 from atlas import AtlasClient

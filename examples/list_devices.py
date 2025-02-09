@@ -1,11 +1,14 @@
 import os
 import sys
-import orjson
 from collections import defaultdict
 from typing import Dict, List
+
+import orjson
 from pydantic import BaseModel
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from atlas import AtlasClient, Device
+
 
 class PropertyValue(BaseModel):
     name: str
@@ -13,9 +16,11 @@ class PropertyValue(BaseModel):
     bias: str
     alias: str
 
+
 class DeviceList(BaseModel):
     by_id: Dict[str, Device]
     by_kind: Dict[str, Dict[str, List[Device]]]
+
 
 def list_devices(debug: bool = False) -> DeviceList:
     """
@@ -48,16 +53,19 @@ def list_devices(debug: bool = False) -> DeviceList:
 
     return DeviceList(by_id=by_id, by_kind=by_kind)
 
+
 if __name__ == "__main__":
     json_output = "--json" in sys.argv
-    debug ="--debug" in sys.argv
+    debug = "--debug" in sys.argv
 
     device_list = list_devices(debug)
     by_kind = device_list.by_kind
     by_id = device_list.by_id
 
     if json_output:
-        print(orjson.dumps(by_kind, default=lambda x: x.model_dump() if isinstance(x, BaseModel) else x).decode("utf-8"))
+        print(
+            orjson.dumps(by_kind, default=lambda x: x.model_dump() if isinstance(x, BaseModel) else x).decode("utf-8")
+        )
         sys.exit(0)
 
     for facility_name, facility in by_kind.items():

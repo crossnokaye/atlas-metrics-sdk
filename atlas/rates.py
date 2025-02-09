@@ -1,15 +1,16 @@
 from datetime import datetime, timedelta
-import re
 from typing import Dict, List, Optional
+
+from dateutil import tz
 from pydantic import BaseModel
-from .atlas_client import AtlasClient, HourlyRates
+
+from atlas.atlas_client import AtlasClient
+from atlas.models import HourlyRates
+
 
 class RateFilter(BaseModel):
     facilities: List[str]
 
-class HourlyRate(BaseModel):
-    start: datetime
-    rate: float
 
 class RatesReader:
     """
@@ -30,7 +31,9 @@ class RatesReader:
         """
         self.client = AtlasClient(refresh_token=refresh_token, debug=debug)
 
-    def read(self, filter: RateFilter, start: Optional[datetime] = None, end: Optional[datetime] = None) -> Dict[str, HourlyRates]:
+    def read(
+        self, filter: RateFilter, start: Optional[datetime] = None, end: Optional[datetime] = None
+    ) -> Dict[str, HourlyRates]:
         """
         Retrieve hourly energy rates for a given filter and time range.
 
@@ -47,7 +50,7 @@ class RatesReader:
         -------
         Dict[str, HourlyRates]
             Dictionary of energy rates indexed by facility short name.
-        
+
         Raises
         ------
         Exception
@@ -55,15 +58,15 @@ class RatesReader:
         """
         facilities = self.client.filter_facilities(filter.facilities)
         if start is None:
-            start = datetime.now() - timedelta(days=1)
+            start = datetime.now(tz.UTC) - timedelta(days=1)
         if end is None:
-            end = datetime.now()
+            end = datetime.now(tz.UTC)
+        result = {}
 
         result = {}
         for f in facilities:
             try:
-                result[f.short_name] = {k: [HourlyRate(start=datetime.fromtimestamp(d.start), rate=d.rate) for d in v]
-                                        for k,v in self.client.get_hourly_rates(f.organization_id, f.agents[0].agent_id, start, end)}
+                result[f.short_name] = self.client.get_hourly_rates(f.organization_id, f.agents[0].agent_id, start, end)
 
             except Exception as e:
                 raise Exception(f"Error retrieving rates for facility {f.display_name}: {e}")

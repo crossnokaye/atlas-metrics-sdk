@@ -1,18 +1,24 @@
-from datetime import datetime
-from collections import defaultdict
 import re
+from collections import defaultdict
+from datetime import datetime
 from typing import Dict, List, Optional
+
+from dateutil import tz
 from pydantic import BaseModel
-from .atlas_client import AtlasClient
-from .models import DeviceMetric, is_valid_metric
+
+from atlas.atlas_client import AtlasClient
+from atlas.models import Device, DeviceMetric, Facility, HistoricalValues, is_valid_metric
+
 
 class Filter(BaseModel):
     facilities: List[str]
     metrics: List[DeviceMetric]
 
+
 class MetricValue(BaseModel):
     timestamp: datetime
     value: float
+
 
 class MetricValues(BaseModel):
     metric: DeviceMetric
@@ -20,6 +26,7 @@ class MetricValues(BaseModel):
     device_alias: str
     aggregation: str
     values: List[MetricValue]
+
 
 class MetricsReader:
     """
@@ -40,7 +47,14 @@ class MetricsReader:
         """
         self.client = AtlasClient(refresh_token=refresh_token, debug=debug)
 
-    def read(self, filter: Filter, start: Optional[datetime] = None, end: Optional[datetime] = None, interval: int = 60, aggregate_by: List[str] = ["avg"]) -> Dict[str, List[MetricValues]]:
+    def read(
+        self,
+        filter: Filter,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+        interval: int = 60,
+        aggregate_by: List[str] = ["avg"],
+    ) -> Dict[str, List[MetricValues]]:
         """
         Retrieve metric values for a given filter and time range.
         Values are averaged over the sampling interval.
@@ -55,15 +69,15 @@ class MetricsReader:
             End time of the historical values, by default now.
         interval : int, optional
             Sampling interval in seconds, by default 60.
-        aggregate_by: List of strings, optional. 
-            Aggregation function to use over the interval, defaults to "avg". 
+        aggregate_by: List of strings, optional.
+            Aggregation function to use over the interval, defaults to "avg".
             Available agg functions are listed in the /models.AggregateBy class
 
         Returns
         -------
         Dict[str, List[MetricsValues]]
             Dictionary of metrics values time series indexed by facility short name.
-        
+
         Raises
         ------
         Exception
@@ -91,7 +105,7 @@ class MetricsReader:
                 alias_filters = self._get_alias_filters(device, metrics_filter)
                 if not alias_filters:
                     continue
-                
+
                 aliases = [af["alias"] for af in alias_filters]
 
                 point_map = self._get_point_ids(facility, agent_id, aliases)
@@ -101,13 +115,13 @@ class MetricsReader:
 
         return result
 
-    def _get_devices(self, facility, agent_id: str) -> List:
+    def _get_devices(self, facility: Facility, agent_id: str) -> List[Device]:
         try:
             return self.client.list_devices(facility.organization_id, agent_id)
         except Exception as e:
             raise Exception(f"Error listing devices for facility {facility.display_name}: {e}")
 
-    def _get_alias_filters(self, device, metrics: List[DeviceMetric]) -> List[Dict[str, str]]:
+    def _get_alias_filters(self, device: Device, metrics: List[DeviceMetric]) -> List[Dict[str, str]]:
         properties = device.properties
 
         # Extract metric names and regex patterns
@@ -128,8 +142,7 @@ class MetricsReader:
         filters.extend(regex_filters)
         return filters
 
-
-    def _get_point_ids(self, facility, agent_id: str, aliases: List[str]) -> Dict[str, str]:
+    def _get_point_ids(self, facility: Facility, agent_id: str, aliases: List[str]) -> Dict[str, str]:
         if not aliases:
             raise Exception(f"No aliases found for facility {facility.short_name}")
         try:
@@ -143,20 +156,39 @@ class MetricsReader:
 
         return point_map
 
-    def _get_historical_values(self, facility, agent_id: str, point_map: Dict[str, str], start: Optional[datetime], end: Optional[datetime], interval: int, aggregate_by: List[str]):
+    def _get_historical_values(
+        self,
+        facility: Facility,
+        agent_id: str,
+        point_map: Dict[str, str],
+        start: Optional[datetime],
+        end: Optional[datetime],
+        interval: int,
+        aggregate_by: List[str],
+    ) -> List[HistoricalValues]:
         try:
-            return self.client.get_historical_values(facility.organization_id, agent_id, list(point_map.values()), start, end, interval, aggregate_by)
+            return self.client.get_historical_values(
+                facility.organization_id, agent_id, list(point_map.values()), start, end, interval, aggregate_by
+            )
         except Exception as e:
             raise Exception(f"Error retrieving historical values for facility {facility.display_name}: {e}")
 
-    def _process_historical_values(self, result: defaultdict, facility, device, alias_filters: List[Dict[str, str]], point_map: Dict[str, str], hvalues: List):
+    def _process_historical_values(
+        self,
+        result: defaultdict[str, List[MetricValues]],
+        facility: Facility,
+        device: Device,
+        alias_filters: List[Dict[str, str]],
+        point_map: Dict[str, str],
+        hvalues: List[HistoricalValues],
+    ) -> None:
         for agvalues in hvalues:
             point_id = agvalues.point_id
             point_alias = next((alias for alias, pid in point_map.items() if pid == point_id), None)
             point_filter = next((af["filter"] for af in alias_filters if af["alias"] == point_alias), None)
-            
+
             for agg in agvalues.values.keys():
-            # for agg in aggregations:
+                # for agg in aggregations:
                 point_values = agvalues.values[agg]
 
                 if point_values.analog:
@@ -171,6 +203,10 @@ class MetricsReader:
                     device_name=device.name,
                     device_alias=device.alias,
                     aggregation=agg,
-                    values=[MetricValue(timestamp=datetime.fromtimestamp(ts), value=val) for ts, val in zip(timestamps, vals)]
+                    values=[
+                        MetricValue(timestamp=datetime.fromtimestamp(ts, tz=tz.UTC), value=val)
+                        for ts, val in zip(timestamps, vals)
+                    ],
                 )
+
             result[facility.short_name].append(metrics_values)

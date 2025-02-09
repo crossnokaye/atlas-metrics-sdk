@@ -4,20 +4,26 @@ build-backend = "hatchling.build"
 
 [project]
 name = "atlas-metrics"
-version = "0.0.1"
+version = "0.0.3"
 description = "Python API Client for retrieving metric point values from the Atlas platform."
 requires-python = ">=3.11"
-dependencies = [
-    "httpx",
-    "orjson",
-    "pydantic",
-    "requests",
-]
+dependencies = ["httpx", "orjson", "pydantic", "requests"]
 
 [tool.hatch.build.targets.sdist]
-exclude = [
-    "/examples",
-]
+exclude = ["/examples"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["atlas"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # isort
+    "I",
+]
