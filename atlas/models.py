@@ -65,16 +65,16 @@ class HistoricalValues(BaseModel):
     point_id: str
     values: Dict[AggregateBy, PointValues]
 
-class HourlyRate(BaseModel):
+class HistoricalHourlyRate(BaseModel):
     start: int
     rate: float
 
 class HourlyRates(BaseModel):
-	usage_rate: List[HourlyRate] = []
-	maximum_demand_charge: List[HourlyRate] = []
-	time_of_use_demand_charge: List[HourlyRate] = []
-	day_ahead_market_rate: List[HourlyRate] = []
-	real_time_market_rate: List[HourlyRate] = []
+    usage_rate: List[HistoricalHourlyRate] = []
+    maximum_demand_charge: List[HistoricalHourlyRate] = []
+    time_of_use_demand_charge: List[HistoricalHourlyRate] = []
+    day_ahead_market_rate: List[HistoricalHourlyRate] = []
+    real_time_market_rate: List[HistoricalHourlyRate] = []
 
 class DeviceKind(str, Enum):
     compressor = "compressor"
