@@ -80,6 +80,14 @@ class HourlyRate(BaseModel):
     rate: float
 
 
+class HourlyRates(BaseModel):
+    usage_rate: List[HourlyRate] = []
+    maximum_demand_charge: List[HourlyRate] = []
+    time_of_use_demand_charge: List[HourlyRate] = []
+    day_ahead_market_rate: List[HourlyRate] = []
+    real_time_market_rate: List[HourlyRate] = []
+
+
 class HistoricalHourlyRate(BaseModel):
     start: int
     rate: float
@@ -90,14 +98,6 @@ class HistoricalHourlyRate(BaseModel):
 
     def to_hourly_rate(self) -> HourlyRate:
         return HourlyRate(start=self.start_datetime, rate=self.rate)
-
-
-class HourlyRates(BaseModel):
-    usage_rate: List[HourlyRate] = []
-    maximum_demand_charge: List[HourlyRate] = []
-    time_of_use_demand_charge: List[HourlyRate] = []
-    day_ahead_market_rate: List[HourlyRate] = []
-    real_time_market_rate: List[HourlyRate] = []
 
 
 class HistoricalHourlyRates(BaseModel):

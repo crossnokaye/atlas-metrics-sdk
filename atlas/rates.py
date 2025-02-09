@@ -62,9 +62,11 @@ class RatesReader:
             end = datetime.now(tz.UTC)
         result = {}
 
+        result = {}
         for f in facilities:
             try:
                 result[f.short_name] = self.client.get_hourly_rates(f.organization_id, f.agents[0].agent_id, start, end)
+
             except Exception as e:
                 raise Exception(f"Error retrieving rates for facility {f.display_name}: {e}")
 
