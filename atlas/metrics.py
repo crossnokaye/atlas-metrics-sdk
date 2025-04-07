@@ -1,9 +1,8 @@
 import re
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
-from dateutil import tz
 from pydantic import BaseModel
 
 from atlas.atlas_client import AtlasClient
@@ -204,7 +203,7 @@ class MetricsReader:
                     device_alias=device.alias,
                     aggregation=agg,
                     values=[
-                        MetricValue(timestamp=datetime.fromtimestamp(ts, tz=tz.UTC), value=val)
+                        MetricValue(timestamp=datetime.fromtimestamp(ts, tz=timezone.utc), value=val)
                         for ts, val in zip(timestamps, vals)
                     ],
                 )

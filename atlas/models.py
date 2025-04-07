@@ -1,8 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Union
 
-from dateutil import tz
 from pydantic import BaseModel
 
 
@@ -94,7 +93,7 @@ class HistoricalHourlyRate(BaseModel):
 
     @property
     def start_datetime(self) -> datetime:
-        return datetime.fromtimestamp(self.start, tz=tz.UTC)
+        return datetime.fromtimestamp(self.start, tz=timezone.utc)
 
     def to_hourly_rate(self) -> HourlyRate:
         return HourlyRate(start=self.start_datetime, rate=self.rate)
