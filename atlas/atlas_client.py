@@ -1,7 +1,5 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
-
-from dateutil import tz
 
 from atlas.http_client import AtlasHTTPClient, AtlasHTTPError
 from atlas.models import (
@@ -191,8 +189,8 @@ class AtlasClient:
             "point_ids": point_ids,
             "start": start.strftime("%Y-%m-%dT%H:%M:%SZ")
             if start
-            else (datetime.now(tz.UTC) - timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "end": end.strftime("%Y-%m-%dT%H:%M:%SZ") if end else datetime.now(tz.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            else (datetime.now(timezone.utc) - timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "end": end.strftime("%Y-%m-%dT%H:%M:%SZ") if end else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "interval": interval,
             "aggregate_by": aggregate_by,
             "changes_only": changes_only,
@@ -248,10 +246,10 @@ class AtlasClient:
         params = {
             "since": since.strftime("%Y-%m-%dT%H:%M:%SZ")
             if since
-            else (datetime.now(tz.UTC) - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            else (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "until": until.strftime("%Y-%m-%dT%H:%M:%SZ")
             if until
-            else datetime.now(tz.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
         try:
             response = self.client.request("GET", url, params=params)

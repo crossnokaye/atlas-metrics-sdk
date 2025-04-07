@@ -1,7 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
-from dateutil import tz
 from pydantic import BaseModel
 
 from atlas.atlas_client import AtlasClient
@@ -58,9 +57,9 @@ class RatesReader:
         """
         facilities = self.client.filter_facilities(filter.facilities)
         if start is None:
-            start = datetime.now(tz.UTC) - timedelta(days=1)
+            start = datetime.now(timezone.utc) - timedelta(days=1)
         if end is None:
-            end = datetime.now(tz.UTC)
+            end = datetime.now(timezone.utc)
         result = {}
 
         result = {}
