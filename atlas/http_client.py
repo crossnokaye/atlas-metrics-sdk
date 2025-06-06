@@ -34,8 +34,8 @@ class AtlasHTTPError(requests.HTTPError):
 
 class AtlasHTTPClient(requests.Session):
     BASE_URL = "https://atlaslive.io"
-    LOGIN_ENDPOINT = "/api/login/v2/login"
-    USERINFO_ENDPOINT = "/api/login/v2/userinfo"
+    LOGIN_ENDPOINT = "/api/login/v3/login"
+    USERINFO_ENDPOINT = "/api/login/v3/userinfo"
     ATLAS_REFRESH_TOKEN_ENV_KEY = "ATLAS_REFRESH_TOKEN"
     DEFAULT_CONFIG_FILE_PATH = Path.home() / ".config/atlas/config.toml"
     HEADERS = "headers"
