@@ -4,8 +4,14 @@ from typing import Dict, List, Optional
 from atlas.http_client import AtlasHTTPClient, AtlasHTTPError
 from atlas.models import (
     AggregateBy,
+    ControlledDeviceCondition,
+    ControlledDeviceControlPoint,
+    ControlledDeviceMetric,
+    ControlledDeviceOutput,
+    ControlledDeviceSetting,
     Deployment,
     Device,
+    DeviceAssociations,
     Facility,
     HistoricalHourlyRates,
     HistoricalValues,
@@ -62,7 +68,7 @@ class AtlasClient:
 
     def list_devices(self, org_id: str, agent_id: str) -> List[Device]:
         """
-        List all devices for a given facility. Uses the current deployment to get the devices.
+        List all devices for a given facility.
 
         Parameters
         ----------
@@ -81,53 +87,39 @@ class AtlasClient:
         AtlasHTTPError
             Raised if an error occurs while making the request
         """
-        active_deployment = self._get_current_deployment(org_id, agent_id)
-        url = f"/orgs/{org_id}/agents/{agent_id}/devices"
-        params = {"version": active_deployment.blueprint_version}
+        url = f"/orgs/{org_id}/agents/{agent_id}/controlled-devices"
 
         try:
-            response = self.client.request("GET", url, params=params)
-            devices = response.json()
+            response = self.client.request("GET", url)
+            controlled_devices = response.json()
         except ValueError as e:
             raise AtlasHTTPError(f"{e}, got {response}", response=response)
 
-        return [Device(**device) for device in devices.get("values", [])]
+        devices: list[Device] = []
+        device_associations = self._get_device_associations(org_id, agent_id)
 
-    def get_point_ids(
-        self,
-        org_id: str,
-        agent_id: str,
-        point_aliases: List[str],
-    ) -> Dict[str, str]:
-        """
-        Retrieve point IDs given an agent and point aliases.
+        for controlled_device in controlled_devices.get("values", []):
+            device = Device(
+                id=controlled_device["device_id"],
+                alias=controlled_device["alias"],
+                kind=controlled_device["kind"],
+                control_points=[
+                    ControlledDeviceControlPoint(**control_point)
+                    for control_point in controlled_device.get("control_points", [])
+                ],
+                metrics=[ControlledDeviceMetric(**metric) for metric in controlled_device.get("metrics", [])],
+                outputs=[ControlledDeviceOutput(**output) for output in controlled_device.get("outputs", [])],
+                conditions=[
+                    ControlledDeviceCondition(**condition) for condition in controlled_device.get("conditions", [])
+                ],
+                settings=[ControlledDeviceSetting(**setting) for setting in controlled_device.get("settings", [])],
+            )
+            associations = device_associations.get(device.id, DeviceAssociations())
+            device.upstream = associations.upstream
+            device.downstream = associations.downstream
+            devices.append(device)
 
-        Parameters
-        ----------
-        org_id : str
-            organization ID associated with the facility as returned by list_facilities
-        agent_id : str
-            agent ID associated with the facility as returned by list_facilities
-        point_aliases : List[str]
-            list of point aliases as returned by list_devices
-
-        Returns
-        -------
-        Dict[str, str]
-            dictionary of point aliases to point IDs
-
-        Raises
-        ------
-        AtlasHTTPError
-            Raised if an error occurs while making the request
-        """
-        url = f"/orgs/{org_id}/agents/{agent_id}/point-ids"
-        payload = {"names": point_aliases}
-        try:
-            response = self.client.request("POST", url, json=payload)
-            return response.json()
-        except ValueError as e:
-            raise AtlasHTTPError(f"{e}, got {response}", response=response)
+        return devices
 
     def get_historical_values(
         self,
@@ -190,7 +182,9 @@ class AtlasClient:
             "start": start.strftime("%Y-%m-%dT%H:%M:%SZ")
             if start
             else (datetime.now(timezone.utc) - timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "end": end.strftime("%Y-%m-%dT%H:%M:%SZ") if end else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "end": end.strftime("%Y-%m-%dT%H:%M:%SZ")
+            if end
+            else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "interval": interval,
             "aggregate_by": aggregate_by,
             "changes_only": changes_only,
@@ -316,3 +310,41 @@ class AtlasClient:
             )
         except KeyError as e:
             raise AtlasHTTPError(f"Error parsing deployment: {e}, got {response_json}", response=response)
+
+    def _get_device_associations(self, org_id: str, agent_id: str) -> Dict[str, DeviceAssociations]:
+        """
+        Get to devices connections for a given facility by device ID.
+
+        Parameters
+        ----------
+        org_id : str
+            organization ID associated with the facility as returned by list_facilities
+        agent_id : str
+            agent ID associated with the facility as returned by list_facilities
+
+        Returns
+        -------
+        Dict[str, DeviceAssociations]
+            Dictionary of device IDs to device associations
+
+        Raises
+        ------
+        AtlasHTTPError
+            Raised if an error occurs while making the request
+        """
+        active_deployment = self._get_current_deployment(org_id, agent_id)
+        devices_url = f"/orgs/{org_id}/agents/{agent_id}/devices"  # used for connections only
+        params = {"version": active_deployment.blueprint_version}
+
+        try:
+            response = self.client.request("GET", devices_url, params=params)
+            devices = response.json()
+        except ValueError as e:
+            raise AtlasHTTPError(f"{e}, got {response}", response=response)
+
+        return {
+            device["id"]: DeviceAssociations(
+                upstream=device.get("upstream", []), downstream=device.get("downstream", [])
+            )
+            for device in devices.get("values", [])
+        }

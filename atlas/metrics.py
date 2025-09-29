@@ -6,7 +6,15 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel
 
 from atlas.atlas_client import AtlasClient
-from atlas.models import Device, DeviceMetric, Facility, HistoricalValues, is_valid_metric
+from atlas.models import (
+    ConstructType,
+    ControlledDeviceConstruct,
+    Device,
+    DeviceMetric,
+    Facility,
+    HistoricalValues,
+    is_valid_metric,
+)
 
 
 class Filter(BaseModel):
@@ -85,9 +93,11 @@ class MetricsReader:
         if not filter.metrics:
             raise Exception("No metrics provided")
 
+        metrics_by_device_kind = defaultdict(list)
         for metric in filter.metrics:
             if not is_valid_metric(metric):
                 raise Exception(f"Invalid metrics type {metric}")
+            metrics_by_device_kind[metric.device_kind].append(metric)
 
         facilities = self.client.filter_facilities(filter.facilities)
 
@@ -97,20 +107,19 @@ class MetricsReader:
             devices = self._get_devices(facility, agent_id)
 
             for device in devices:
-                metrics_filter = [metric for metric in filter.metrics if metric.device_kind == device.kind]
+                metrics_filter = metrics_by_device_kind[device.kind]
                 if not metrics_filter:
                     continue
 
-                alias_filters = self._get_alias_filters(device, metrics_filter)
-                if not alias_filters:
+                filtered_constructs_by_id = self._get_filtered_constructs_by_id(device, metrics_filter)
+                if not filtered_constructs_by_id:
                     continue
 
-                aliases = [af["alias"] for af in alias_filters]
+                hvalues = self._get_historical_values(
+                    facility, agent_id, list(filtered_constructs_by_id.keys()), start, end, interval, aggregate_by
+                )
 
-                point_map = self._get_point_ids(facility, agent_id, aliases)
-                hvalues = self._get_historical_values(facility, agent_id, point_map, start, end, interval, aggregate_by)
-
-                self._process_historical_values(result, facility, device, alias_filters, point_map, hvalues)
+                self._process_historical_values(result, facility, device, filtered_constructs_by_id, hvalues)
 
         return result
 
@@ -120,46 +129,36 @@ class MetricsReader:
         except Exception as e:
             raise Exception(f"Error listing devices for facility {facility.display_name}: {e}")
 
-    def _get_alias_filters(self, device: Device, metrics: List[DeviceMetric]) -> List[Dict[str, str]]:
-        properties = device.properties
+    def _get_filtered_constructs_by_id(
+        self, device: Device, metrics: List[DeviceMetric]
+    ) -> List[Dict[str, ControlledDeviceConstruct]]:
+        result: Dict[str, ControlledDeviceConstruct] = {}
+        for construct_type in ConstructType:
+            # Extract metric names and regex patterns
+            metric_names = {metric.name for metric in metrics if metric.construct_type == construct_type}
+            metric_regexps = [
+                re.compile(metric.alias_regex)
+                for metric in metrics
+                if metric.construct_type == construct_type and metric.alias_regex
+            ]
+            if not metric_names and not metric_regexps:
+                continue
 
-        # Extract metric names and regex patterns
-        metric_names = {metric.name for metric in metrics}
-        metric_regexps = [re.compile(metric.alias_regex) for metric in metrics if metric.alias_regex]
+            contructs: list[ControlledDeviceConstruct] = getattr(device, f"{construct_type.value}s")
 
-        # Create initial filters based on metric names
-        filters = [{"alias": prop.value.alias, "filter": prop.key} for prop in properties if prop.key in metric_names]
+            for construct in contructs:
+                if construct.alias in metric_names:
+                    result[construct.id] = construct
+                elif any(pattern.match(construct.alias) for pattern in metric_regexps):
+                    result[construct.id] = construct
 
-        # Add filters based on non-empty regex patterns
-        regex_filters = [
-            {"alias": prop.value.alias, "filter": prop.key}
-            for prop in properties
-            if any(pattern.match(prop.value.alias) for pattern in metric_regexps)
-        ]
-
-        # Append regex-based filters to the main filters list
-        filters.extend(regex_filters)
-        return filters
-
-    def _get_point_ids(self, facility: Facility, agent_id: str, aliases: List[str]) -> Dict[str, str]:
-        if not aliases:
-            raise Exception(f"No aliases found for facility {facility.short_name}")
-        try:
-            point_map = self.client.get_point_ids(facility.organization_id, agent_id, aliases)
-        except Exception as e:
-            raise Exception(f"Error listing points for facility {facility.display_name}: {e}")
-
-        if len(set(point_map.keys())) != len(set(aliases)):
-            not_found = set(aliases) - set(point_map.keys())
-            raise Exception(f"Points {not_found} not found for facility {facility.short_name}")
-
-        return point_map
+        return result
 
     def _get_historical_values(
         self,
         facility: Facility,
         agent_id: str,
-        point_map: Dict[str, str],
+        point_ids: List[str],
         start: Optional[datetime],
         end: Optional[datetime],
         interval: int,
@@ -167,7 +166,7 @@ class MetricsReader:
     ) -> List[HistoricalValues]:
         try:
             return self.client.get_historical_values(
-                facility.organization_id, agent_id, list(point_map.values()), start, end, interval, aggregate_by
+                facility.organization_id, agent_id, point_ids, start, end, interval, aggregate_by
             )
         except Exception as e:
             raise Exception(f"Error retrieving historical values for facility {facility.display_name}: {e}")
@@ -177,14 +176,11 @@ class MetricsReader:
         result: defaultdict[str, List[MetricValues]],
         facility: Facility,
         device: Device,
-        alias_filters: List[Dict[str, str]],
-        point_map: Dict[str, str],
+        filtered_constructs_by_id: List[Dict[str, ControlledDeviceConstruct]],
         hvalues: List[HistoricalValues],
     ) -> None:
         for agvalues in hvalues:
             point_id = agvalues.point_id
-            point_alias = next((alias for alias, pid in point_map.items() if pid == point_id), None)
-            point_filter = next((af["filter"] for af in alias_filters if af["alias"] == point_alias), None)
 
             for agg in agvalues.values.keys():
                 # for agg in aggregations:
@@ -198,7 +194,11 @@ class MetricsReader:
                     vals, timestamps = [], []
 
                 metrics_values = MetricValues(
-                    metric=DeviceMetric(name=point_filter, device_kind=device.kind),
+                    metric=DeviceMetric(
+                        name=filtered_constructs_by_id[point_id].alias,
+                        device_kind=device.kind,
+                        construct_type=filtered_constructs_by_id[point_id].construct_type,
+                    ),
                     device_name=device.name,
                     device_alias=device.alias,
                     aggregation=agg,

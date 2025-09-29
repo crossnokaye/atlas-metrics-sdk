@@ -5,7 +5,7 @@ import orjson
 from pydantic import BaseModel
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from atlas import CompressorMetric, DeviceKind, DeviceMetric, Filter, MetricsReader
+from atlas import CompressorMetric, ConstructType, DeviceKind, DeviceMetric, Filter, MetricsReader
 
 """
 This example retrieves the suction pressure and motor current for all
@@ -23,7 +23,9 @@ device_kind = DeviceKind.compressor
 metric_name = CompressorMetric.suction_pressure
 
 compressor_suction_pressure = DeviceMetric(device_kind=device_kind, name=metric_name)
-motor_current = DeviceMetric(device_kind=device_kind, alias_regex=".*_motorCurrent")
+motor_current = DeviceMetric(
+    device_kind=device_kind, construct_type=ConstructType.control_point, alias_regex=".*Current.*"
+)
 filter = Filter(facilities=facilities, metrics=[compressor_suction_pressure, motor_current])
 values = MetricsReader(debug=debug).read(filter)
 

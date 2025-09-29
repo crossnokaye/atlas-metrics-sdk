@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 
 class Agent(BaseModel):
@@ -19,31 +19,109 @@ class Facility(BaseModel):
     agents: List[Agent]
 
 
-class PropertyValue(BaseModel):
-    alias: str
-    name: str
-    kind: str
-    bias: str
-
-
-class Property(BaseModel):
-    key: str
-    value: PropertyValue
-
-
 class Connection(BaseModel):
     device_id: str
     kind: str
 
 
-class Device(BaseModel):
-    id: str
-    name: str
-    alias: str
-    kind: str
-    properties: List[Property] = []
+class DeviceAssociations(BaseModel):
     upstream: List[Connection] = []
     downstream: List[Connection] = []
+
+
+class ConstructType(str, Enum):
+    control_point = "control_point"
+    metric = "metric"
+    output = "output"
+    condition = "condition"
+    setting = "setting"
+
+
+class ControlledDeviceControlPoint(BaseModel):
+    id: str = Field(alias="control_point_id")
+    alias: str
+    bias: str
+    type: str
+    unit: str | None = None
+
+    @property
+    def construct_type(self) -> ConstructType:
+        return ConstructType.control_point
+
+
+class ControlledDeviceMetric(BaseModel):
+    id: str = Field(alias="metric_id")
+    alias: str
+    kind: str
+    unit: str | None = None
+
+    @property
+    def construct_type(self) -> ConstructType:
+        return ConstructType.metric
+
+
+class ControlledDeviceOutput(BaseModel):
+    id: str = Field(alias="output_id")
+    alias: str
+    kind: str
+    unit: str | None = None
+
+    @property
+    def construct_type(self) -> ConstructType:
+        return ConstructType.output
+
+
+class ControlledDeviceCondition(BaseModel):
+    id: str = Field(alias="condition_id")
+    alias: str
+
+    @property
+    def construct_type(self) -> ConstructType:
+        return ConstructType.condition
+
+
+class ControlledDeviceSetting(BaseModel):
+    id: str = Field(alias="setting_id")
+    name: str
+    kind: str
+    unit: str | None = None
+    # value: float | bool | str | None = None
+    # default_value: float | bool | str | None = None
+    # desired_value: float | bool | str | None = None
+
+    @property
+    def alias(self) -> str:
+        return self.name
+
+    @property
+    def construct_type(self) -> ConstructType:
+        return ConstructType.setting
+
+
+ControlledDeviceConstruct = Union[
+    ControlledDeviceControlPoint,
+    ControlledDeviceMetric,
+    ControlledDeviceOutput,
+    ControlledDeviceCondition,
+    ControlledDeviceSetting,
+]
+
+
+class Device(BaseModel):
+    id: str
+    alias: str
+    kind: str
+    control_points: List[ControlledDeviceControlPoint] = []
+    metrics: List[ControlledDeviceMetric] = []
+    outputs: List[ControlledDeviceOutput] = []
+    conditions: List[ControlledDeviceCondition] = []
+    settings: List[ControlledDeviceSetting] = []
+    upstream: List[Connection] = []
+    downstream: List[Connection] = []
+
+    @property
+    def name(self) -> str:
+        return self.alias
 
 
 class AnalogValues(BaseModel):
@@ -142,16 +220,17 @@ class EvaporatorMetric(str, Enum):
 
 
 class VesselMetric(str, Enum):
-    suction_pressure = "SuctionPressure"
+    pressure = "Pressure"
+
+
+def construct_from_metric_name(metric_name: str, device_kind: DeviceKind) -> ConstructType:
+    # Currently all the metrics are control points
+    if metric_name in [e.value for e in device_metric_mapping[device_kind]]:
+        return ConstructType.control_point
+    return None
 
 
 DeviceMetricName = Union[CompressorMetric, CondenserMetric, EvaporatorMetric, VesselMetric]
-
-
-class DeviceMetric(BaseModel):
-    name: str = ""
-    alias_regex: str = ""  # Use name (preferred) or alias regular expression to match the metric
-    device_kind: DeviceKind
 
 
 device_metric_mapping = {
@@ -160,6 +239,35 @@ device_metric_mapping = {
     DeviceKind.evaporator: EvaporatorMetric,
     DeviceKind.vessel: VesselMetric,
 }
+
+
+class DeviceMetric(BaseModel):
+    name: str = ""
+    alias_regex: str = ""  # Use name (preferred) or alias regular expression to match the metric
+    device_kind: DeviceKind
+    construct_type: ConstructType
+
+    @model_validator(mode="before")
+    @classmethod
+    def auto_fill_construct_type(cls, values):
+        """
+        Auto-fill construct_type based on device_kind and name if not provided.
+        Only does lookup when name is provided (not when using alias_regex).
+        """
+        if not isinstance(values, dict):
+            return values
+
+        # If construct_type is not provided, auto-fill it
+        if "construct_type" not in values or values["construct_type"] is None:
+            name = values.get("name", "")
+            device_kind = values.get("device_kind")
+
+            if name != "" and device_kind:
+                values["construct_type"] = construct_from_metric_name(name, device_kind)
+            else:
+                # If no name provided, we can't auto-fill, so raise an error
+                raise ValueError("construct_type must be provided when using alias_regex")
+        return values
 
 
 class Deployment(BaseModel):
