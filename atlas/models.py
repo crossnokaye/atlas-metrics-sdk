@@ -29,7 +29,7 @@ class DeviceAssociations(BaseModel):
     downstream: List[Connection] = []
 
 
-class ConstructType(str, Enum):
+class MetricType(str, Enum):
     control_point = "control_point"
     metric = "metric"
     output = "output"
@@ -37,7 +37,7 @@ class ConstructType(str, Enum):
     setting = "setting"
 
 
-class ControlledDeviceControlPoint(BaseModel):
+class ControlPoint(BaseModel):
     id: str = Field(alias="control_point_id")
     alias: str
     bias: str
@@ -45,42 +45,42 @@ class ControlledDeviceControlPoint(BaseModel):
     unit: str | None = None
 
     @property
-    def construct_type(self) -> ConstructType:
-        return ConstructType.control_point
+    def metric_type(self) -> MetricType:
+        return MetricType.control_point
 
 
-class ControlledDeviceMetric(BaseModel):
+class Metric(BaseModel):
     id: str = Field(alias="metric_id")
     alias: str
     kind: str
     unit: str | None = None
 
     @property
-    def construct_type(self) -> ConstructType:
-        return ConstructType.metric
+    def metric_type(self) -> MetricType:
+        return MetricType.metric
 
 
-class ControlledDeviceOutput(BaseModel):
+class Output(BaseModel):
     id: str = Field(alias="output_id")
     alias: str
     kind: str
     unit: str | None = None
 
     @property
-    def construct_type(self) -> ConstructType:
-        return ConstructType.output
+    def metric_type(self) -> MetricType:
+        return MetricType.output
 
 
-class ControlledDeviceCondition(BaseModel):
+class Condition(BaseModel):
     id: str = Field(alias="condition_id")
     alias: str
 
     @property
-    def construct_type(self) -> ConstructType:
-        return ConstructType.condition
+    def metric_type(self) -> MetricType:
+        return MetricType.condition
 
 
-class ControlledDeviceSetting(BaseModel):
+class Setting(BaseModel):
     id: str = Field(alias="setting_id")
     name: str
     kind: str
@@ -94,16 +94,16 @@ class ControlledDeviceSetting(BaseModel):
         return self.name
 
     @property
-    def construct_type(self) -> ConstructType:
-        return ConstructType.setting
+    def metric_type(self) -> MetricType:
+        return MetricType.setting
 
 
 ControlledDeviceConstruct = Union[
-    ControlledDeviceControlPoint,
-    ControlledDeviceMetric,
-    ControlledDeviceOutput,
-    ControlledDeviceCondition,
-    ControlledDeviceSetting,
+    ControlPoint,
+    Metric,
+    Output,
+    Condition,
+    Setting,
 ]
 
 
@@ -111,11 +111,11 @@ class Device(BaseModel):
     id: str
     alias: str
     kind: str
-    control_points: List[ControlledDeviceControlPoint] = []
-    metrics: List[ControlledDeviceMetric] = []
-    outputs: List[ControlledDeviceOutput] = []
-    conditions: List[ControlledDeviceCondition] = []
-    settings: List[ControlledDeviceSetting] = []
+    control_points: List[ControlPoint] = []
+    metrics: List[Metric] = []
+    outputs: List[Output] = []
+    conditions: List[Condition] = []
+    settings: List[Setting] = []
     upstream: List[Connection] = []
     downstream: List[Connection] = []
 
@@ -223,10 +223,10 @@ class VesselMetric(str, Enum):
     pressure = "Pressure"
 
 
-def construct_from_metric_name(metric_name: str, device_kind: DeviceKind) -> ConstructType:
+def construct_from_metric_name(metric_name: str, device_kind: DeviceKind) -> MetricType:
     # Currently all the metrics are control points
     if metric_name in [e.value for e in device_metric_mapping[device_kind]]:
-        return ConstructType.control_point
+        return MetricType.control_point
     return None
 
 
@@ -245,28 +245,28 @@ class DeviceMetric(BaseModel):
     name: str = ""
     alias_regex: str = ""  # Use name (preferred) or alias regular expression to match the metric
     device_kind: DeviceKind
-    construct_type: ConstructType
+    metric_type: MetricType
 
     @model_validator(mode="before")
     @classmethod
-    def auto_fill_construct_type(cls, values):
+    def auto_fill_metric_type(cls, values):
         """
-        Auto-fill construct_type based on device_kind and name if not provided.
+        Auto-fill metric_type based on device_kind and name if not provided.
         Only does lookup when name is provided (not when using alias_regex).
         """
         if not isinstance(values, dict):
             return values
 
-        # If construct_type is not provided, auto-fill it
-        if "construct_type" not in values or values["construct_type"] is None:
+        # If metric_type is not provided, auto-fill it
+        if "metric_type" not in values or values["metric_type"] is None:
             name = values.get("name", "")
             device_kind = values.get("device_kind")
 
             if name != "" and device_kind:
-                values["construct_type"] = construct_from_metric_name(name, device_kind)
+                values["metric_type"] = construct_from_metric_name(name, device_kind)
             else:
                 # If no name provided, we can't auto-fill, so raise an error
-                raise ValueError("construct_type must be provided when using alias_regex")
+                raise ValueError("metric_type must be provided when using alias_regex")
         return values
 
 

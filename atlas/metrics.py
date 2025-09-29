@@ -7,12 +7,12 @@ from pydantic import BaseModel
 
 from atlas.atlas_client import AtlasClient
 from atlas.models import (
-    ConstructType,
     ControlledDeviceConstruct,
     Device,
     DeviceMetric,
     Facility,
     HistoricalValues,
+    MetricType,
     is_valid_metric,
 )
 
@@ -133,18 +133,18 @@ class MetricsReader:
         self, device: Device, metrics: List[DeviceMetric]
     ) -> List[Dict[str, ControlledDeviceConstruct]]:
         result: Dict[str, ControlledDeviceConstruct] = {}
-        for construct_type in ConstructType:
+        for metric_type in MetricType:
             # Extract metric names and regex patterns
-            metric_names = {metric.name for metric in metrics if metric.construct_type == construct_type}
+            metric_names = {metric.name for metric in metrics if metric.metric_type == metric_type}
             metric_regexps = [
                 re.compile(metric.alias_regex)
                 for metric in metrics
-                if metric.construct_type == construct_type and metric.alias_regex
+                if metric.metric_type == metric_type and metric.alias_regex
             ]
             if not metric_names and not metric_regexps:
                 continue
 
-            contructs: list[ControlledDeviceConstruct] = getattr(device, f"{construct_type.value}s")
+            contructs: list[ControlledDeviceConstruct] = getattr(device, f"{metric_type.value}s")
 
             for construct in contructs:
                 if construct.alias in metric_names:
@@ -197,7 +197,7 @@ class MetricsReader:
                     metric=DeviceMetric(
                         name=filtered_constructs_by_id[point_id].alias,
                         device_kind=device.kind,
-                        construct_type=filtered_constructs_by_id[point_id].construct_type,
+                        metric_type=filtered_constructs_by_id[point_id].metric_type,
                     ),
                     device_name=device.name,
                     device_alias=device.alias,

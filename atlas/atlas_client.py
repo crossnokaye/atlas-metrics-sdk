@@ -4,11 +4,8 @@ from typing import Dict, List, Optional
 from atlas.http_client import AtlasHTTPClient, AtlasHTTPError
 from atlas.models import (
     AggregateBy,
-    ControlledDeviceCondition,
-    ControlledDeviceControlPoint,
-    ControlledDeviceMetric,
-    ControlledDeviceOutput,
-    ControlledDeviceSetting,
+    Condition,
+    ControlPoint,
     Deployment,
     Device,
     DeviceAssociations,
@@ -16,6 +13,9 @@ from atlas.models import (
     HistoricalHourlyRates,
     HistoricalValues,
     HourlyRates,
+    Metric,
+    Output,
+    Setting,
 )
 
 
@@ -104,15 +104,12 @@ class AtlasClient:
                 alias=controlled_device["alias"],
                 kind=controlled_device["kind"],
                 control_points=[
-                    ControlledDeviceControlPoint(**control_point)
-                    for control_point in controlled_device.get("control_points", [])
+                    ControlPoint(**control_point) for control_point in controlled_device.get("control_points", [])
                 ],
-                metrics=[ControlledDeviceMetric(**metric) for metric in controlled_device.get("metrics", [])],
-                outputs=[ControlledDeviceOutput(**output) for output in controlled_device.get("outputs", [])],
-                conditions=[
-                    ControlledDeviceCondition(**condition) for condition in controlled_device.get("conditions", [])
-                ],
-                settings=[ControlledDeviceSetting(**setting) for setting in controlled_device.get("settings", [])],
+                metrics=[Metric(**metric) for metric in controlled_device.get("metrics", [])],
+                outputs=[Output(**output) for output in controlled_device.get("outputs", [])],
+                conditions=[Condition(**condition) for condition in controlled_device.get("conditions", [])],
+                settings=[Setting(**setting) for setting in controlled_device.get("settings", [])],
             )
             associations = device_associations.get(device.id, DeviceAssociations())
             device.upstream = associations.upstream
