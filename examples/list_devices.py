@@ -57,7 +57,7 @@ def list_devices(facilities: List[str], debug: bool = False) -> DeviceList:
 if __name__ == "__main__":
     json_output = "--json" in sys.argv
     debug = "--debug" in sys.argv
-    facilities = sys.argv[1:]
+    facilities = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
 
     device_list = list_devices(facilities, debug)
     by_kind = device_list.by_kind

@@ -14,7 +14,7 @@ average values for each minute.
 """
 json_output = "--json" in sys.argv
 debug = "--debug" in sys.argv
-facilities = sys.argv[1:]
+facilities = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
 if not facilities:
     print("Usage: python read_metrics.py <facility1> <facility2> ...")
     sys.exit(1)
