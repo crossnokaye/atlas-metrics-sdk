@@ -22,14 +22,14 @@ class DeviceList(BaseModel):
     by_kind: Dict[str, Dict[str, List[Device]]]
 
 
-def list_devices(debug: bool = False) -> DeviceList:
+def list_devices(facilities: List[str], debug: bool = False) -> DeviceList:
     """
     Return the device across all facilities indexed by facility name, then by
     device kind as well as a dictionary of all devices indexed by device ID.
     """
     client = AtlasClient(debug=debug)
     try:
-        facilities = client.list_facilities()
+        facilities = client.filter_facilities(facilities)
     except Exception as e:
         print(f"Error listing facilities: {e}")
         return {}
@@ -57,8 +57,9 @@ def list_devices(debug: bool = False) -> DeviceList:
 if __name__ == "__main__":
     json_output = "--json" in sys.argv
     debug = "--debug" in sys.argv
+    facilities = sys.argv[1:]
 
-    device_list = list_devices(debug)
+    device_list = list_devices(facilities, debug)
     by_kind = device_list.by_kind
     by_id = device_list.by_id
 
@@ -74,8 +75,21 @@ if __name__ == "__main__":
             print(f"  {kind}:")
             for device in by_kind:
                 print(f"    {device.name}")
-                for prop in device.properties:
-                    print(f"      {prop.value.name} ({prop.value.kind} {prop.value.bias}): {prop.value.alias}")
+                print("     Control points -----")
+                for cp in device.control_points:
+                    print(f"      {cp.alias} (type: {cp.type} bias: {cp.bias} unit: {cp.unit}): {cp.id}")
+                print("     Metrics -----")
+                for metric in device.metrics:
+                    print(f"      {metric.alias} (kind: {metric.kind} unit: {metric.unit}): {metric.id}")
+                print("     Outputs -----")
+                for output in device.outputs:
+                    print(f"      {output.alias} (kind: {output.kind} unit: {output.unit}): {output.id}")
+                print("     Conditions -----")
+                for condition in device.conditions:
+                    print(f"      {condition.alias}: {condition.id}")
+                print("     Settings -----")
+                for setting in device.settings:
+                    print(f"      {setting.alias} (kind: {setting.kind} unit: {setting.unit}): {setting.id}")
                 for up in device.upstream:
                     print(f"      Upstream: {up.kind} to {by_id[up.device_id].name}")
                 for down in device.downstream:
