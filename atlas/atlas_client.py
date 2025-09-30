@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import Optional
 
 from atlas.http_client import AtlasHTTPClient, AtlasHTTPError
 from atlas.models import (
@@ -43,7 +43,7 @@ class AtlasClient:
         self.client = AtlasHTTPClient(refresh_token=refresh_token, debug=debug)
         self.client.refresh_access_token()
 
-    def list_facilities(self) -> List[Facility]:
+    def list_facilities(self) -> list[Facility]:
         """
         List facilities the logged in user has access to.
 
@@ -66,7 +66,7 @@ class AtlasClient:
 
         return [Facility(**facility) for facility in facilities]
 
-    def list_devices(self, org_id: str, agent_id: str) -> List[Device]:
+    def list_devices(self, org_id: str, agent_id: str) -> list[Device]:
         """
         List all devices for a given facility.
 
@@ -122,14 +122,14 @@ class AtlasClient:
         self,
         org_id: str,
         agent_id: str,
-        point_ids: List[str],
+        point_ids: list[str],
         start: Optional[datetime] = None,
         end: Optional[datetime] = None,
         interval: int = 60,
-        aggregate_by: List[AggregateBy] = ["avg"],
+        aggregate_by: list[AggregateBy] = ["avg"],
         changes_only: bool = False,
         scaled: bool = True,
-    ) -> List[HistoricalValues]:
+    ) -> list[HistoricalValues]:
         """
         Get historical point values. A single request may return multiple points
         and multiple aggregation methods for each point.
@@ -248,7 +248,7 @@ class AtlasClient:
         except ValueError as e:
             raise AtlasHTTPError(f"{e}, got {response}", response=response)
 
-    def filter_facilities(self, filter: List[str]) -> List[Facility]:
+    def filter_facilities(self, filter: list[str]) -> list[Facility]:
         try:
             all_facilities = self.list_facilities()
         except Exception as e:
@@ -308,7 +308,7 @@ class AtlasClient:
         except KeyError as e:
             raise AtlasHTTPError(f"Error parsing deployment: {e}, got {response_json}", response=response)
 
-    def _get_device_associations(self, org_id: str, agent_id: str) -> Dict[str, DeviceAssociations]:
+    def _get_device_associations(self, org_id: str, agent_id: str) -> dict[str, DeviceAssociations]:
         """
         Get to devices connections for a given facility by device ID.
 

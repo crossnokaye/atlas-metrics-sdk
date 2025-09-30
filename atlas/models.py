@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
-from enum import Enum
-from typing import Dict, List, Union
+from enum import StrEnum
+from typing import Union
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -16,7 +16,7 @@ class Facility(BaseModel):
     short_name: str
     address: str
     timezone: str
-    agents: List[Agent]
+    agents: list[Agent]
 
 
 class Connection(BaseModel):
@@ -25,11 +25,11 @@ class Connection(BaseModel):
 
 
 class DeviceAssociations(BaseModel):
-    upstream: List[Connection] = []
-    downstream: List[Connection] = []
+    upstream: list[Connection] = []
+    downstream: list[Connection] = []
 
 
-class MetricType(str, Enum):
+class MetricType(StrEnum):
     control_point = "control_point"
     metric = "metric"
     output = "output"
@@ -111,13 +111,13 @@ class Device(BaseModel):
     id: str
     alias: str
     kind: str
-    control_points: List[ControlPoint] = []
-    metrics: List[Metric] = []
-    outputs: List[Output] = []
-    conditions: List[Condition] = []
-    settings: List[Setting] = []
-    upstream: List[Connection] = []
-    downstream: List[Connection] = []
+    control_points: list[ControlPoint] = []
+    metrics: list[Metric] = []
+    outputs: list[Output] = []
+    conditions: list[Condition] = []
+    settings: list[Setting] = []
+    upstream: list[Connection] = []
+    downstream: list[Connection] = []
 
     @property
     def name(self) -> str:
@@ -125,13 +125,13 @@ class Device(BaseModel):
 
 
 class AnalogValues(BaseModel):
-    timestamps: List[int]
-    values: List[float]
+    timestamps: list[int]
+    values: list[float]
 
 
 class DiscreteValues(BaseModel):
-    timestamps: List[int]
-    values: List[bool]
+    timestamps: list[int]
+    values: list[bool]
 
 
 class PointValues(BaseModel):
@@ -139,7 +139,7 @@ class PointValues(BaseModel):
     discrete: DiscreteValues = None
 
 
-class AggregateBy(str, Enum):
+class AggregateBy(StrEnum):
     avg = "avg"
     min = "min"
     max = "max"
@@ -149,7 +149,7 @@ class AggregateBy(str, Enum):
 
 class HistoricalValues(BaseModel):
     point_id: str
-    values: Dict[AggregateBy, PointValues]
+    values: dict[AggregateBy, PointValues]
 
 
 class HourlyRate(BaseModel):
@@ -158,11 +158,11 @@ class HourlyRate(BaseModel):
 
 
 class HourlyRates(BaseModel):
-    usage_rate: List[HourlyRate] = []
-    maximum_demand_charge: List[HourlyRate] = []
-    time_of_use_demand_charge: List[HourlyRate] = []
-    day_ahead_market_rate: List[HourlyRate] = []
-    real_time_market_rate: List[HourlyRate] = []
+    usage_rate: list[HourlyRate] = []
+    maximum_demand_charge: list[HourlyRate] = []
+    time_of_use_demand_charge: list[HourlyRate] = []
+    day_ahead_market_rate: list[HourlyRate] = []
+    real_time_market_rate: list[HourlyRate] = []
 
 
 class HistoricalHourlyRate(BaseModel):
@@ -178,11 +178,11 @@ class HistoricalHourlyRate(BaseModel):
 
 
 class HistoricalHourlyRates(BaseModel):
-    usage_rate: List[HistoricalHourlyRate] = []
-    maximum_demand_charge: List[HistoricalHourlyRate] = []
-    time_of_use_demand_charge: List[HistoricalHourlyRate] = []
-    day_ahead_market_rate: List[HistoricalHourlyRate] = []
-    real_time_market_rate: List[HistoricalHourlyRate] = []
+    usage_rate: list[HistoricalHourlyRate] = []
+    maximum_demand_charge: list[HistoricalHourlyRate] = []
+    time_of_use_demand_charge: list[HistoricalHourlyRate] = []
+    day_ahead_market_rate: list[HistoricalHourlyRate] = []
+    real_time_market_rate: list[HistoricalHourlyRate] = []
 
     def to_hourly_rates(self) -> HourlyRates:
         return HourlyRates(
@@ -194,7 +194,7 @@ class HistoricalHourlyRates(BaseModel):
         )
 
 
-class DeviceKind(str, Enum):
+class DeviceKind(StrEnum):
     compressor = "compressor"
     evaporator = "evaporator"
     condenser = "condenser"
@@ -202,24 +202,24 @@ class DeviceKind(str, Enum):
     energy_meter = "energy meter"
 
 
-class CompressorMetric(str, Enum):
+class CompressorMetric(StrEnum):
     discharge_pressure = "DischargePressure"
     discharge_temperature = "DischargeTemperature"
     suction_pressure = "SuctionPressure"
     suction_temperature = "SuctionTemperature"
 
 
-class CondenserMetric(str, Enum):
+class CondenserMetric(StrEnum):
     discharge_pressure = "DischargePressure"
     discharge_temperature = "DischargeTemperature"
 
 
-class EvaporatorMetric(str, Enum):
+class EvaporatorMetric(StrEnum):
     supply_temperature = "SupplyTemperature"
     return_temperature = "ReturnTemperature"
 
 
-class VesselMetric(str, Enum):
+class VesselMetric(StrEnum):
     pressure = "Pressure"
 
 

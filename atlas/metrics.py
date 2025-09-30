@@ -1,7 +1,7 @@
 import re
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -18,8 +18,8 @@ from atlas.models import (
 
 
 class Filter(BaseModel):
-    facilities: List[str]
-    metrics: List[DeviceMetric]
+    facilities: list[str]
+    metrics: list[DeviceMetric]
 
 
 class MetricValue(BaseModel):
@@ -32,7 +32,7 @@ class MetricValues(BaseModel):
     device_name: str
     device_alias: str
     aggregation: str
-    values: List[MetricValue]
+    values: list[MetricValue]
 
 
 class MetricsReader:
@@ -60,8 +60,8 @@ class MetricsReader:
         start: Optional[datetime] = None,
         end: Optional[datetime] = None,
         interval: int = 60,
-        aggregate_by: List[str] = ["avg"],
-    ) -> Dict[str, List[MetricValues]]:
+        aggregate_by: list[str] = ["avg"],
+    ) -> dict[str, list[MetricValues]]:
         """
         Retrieve metric values for a given filter and time range.
         Values are averaged over the sampling interval.
@@ -123,16 +123,16 @@ class MetricsReader:
 
         return result
 
-    def _get_devices(self, facility: Facility, agent_id: str) -> List[Device]:
+    def _get_devices(self, facility: Facility, agent_id: str) -> list[Device]:
         try:
             return self.client.list_devices(facility.organization_id, agent_id)
         except Exception as e:
             raise Exception(f"Error listing devices for facility {facility.display_name}: {e}")
 
     def _get_filtered_constructs_by_id(
-        self, device: Device, metrics: List[DeviceMetric]
-    ) -> List[Dict[str, ControlledDeviceConstruct]]:
-        result: Dict[str, ControlledDeviceConstruct] = {}
+        self, device: Device, metrics: list[DeviceMetric]
+    ) -> list[dict[str, ControlledDeviceConstruct]]:
+        result: dict[str, ControlledDeviceConstruct] = {}
         for metric_type in MetricType:
             # Extract metric names and regex patterns
             metric_names = {metric.name for metric in metrics if metric.metric_type == metric_type}
@@ -158,12 +158,12 @@ class MetricsReader:
         self,
         facility: Facility,
         agent_id: str,
-        point_ids: List[str],
+        point_ids: list[str],
         start: Optional[datetime],
         end: Optional[datetime],
         interval: int,
-        aggregate_by: List[str],
-    ) -> List[HistoricalValues]:
+        aggregate_by: list[str],
+    ) -> list[HistoricalValues]:
         try:
             return self.client.get_historical_values(
                 facility.organization_id, agent_id, point_ids, start, end, interval, aggregate_by
@@ -173,11 +173,11 @@ class MetricsReader:
 
     def _process_historical_values(
         self,
-        result: defaultdict[str, List[MetricValues]],
+        result: defaultdict[str, list[MetricValues]],
         facility: Facility,
         device: Device,
-        filtered_constructs_by_id: List[Dict[str, ControlledDeviceConstruct]],
-        hvalues: List[HistoricalValues],
+        filtered_constructs_by_id: list[dict[str, ControlledDeviceConstruct]],
+        hvalues: list[HistoricalValues],
     ) -> None:
         for agvalues in hvalues:
             point_id = agvalues.point_id
