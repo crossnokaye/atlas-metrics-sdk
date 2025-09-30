@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Union
+from typing import Any, TypeAlias, Union
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -98,7 +98,7 @@ class Setting(BaseModel):
         return MetricType.setting
 
 
-ControlledDeviceConstruct = Union[
+ControlledDeviceConstruct: TypeAlias = Union[
     ControlPoint,
     Metric,
     Output,
@@ -230,7 +230,7 @@ def construct_from_metric_name(metric_name: str, device_kind: DeviceKind) -> Met
     return None
 
 
-DeviceMetricName = Union[CompressorMetric, CondenserMetric, EvaporatorMetric, VesselMetric]
+DeviceMetricName: TypeAlias = Union[CompressorMetric, CondenserMetric, EvaporatorMetric, VesselMetric]
 
 
 device_metric_mapping = {
@@ -249,7 +249,7 @@ class DeviceMetric(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def auto_fill_metric_type(cls, values):
+    def auto_fill_metric_type(cls, values: Any) -> dict[str, Any]:
         """
         Auto-fill metric_type based on device_kind and name if not provided.
         Only does lookup when name is provided (not when using alias_regex).
