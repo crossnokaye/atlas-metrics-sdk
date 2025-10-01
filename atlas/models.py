@@ -85,9 +85,6 @@ class Setting(BaseModel):
     name: str
     kind: str
     unit: str | None = None
-    # value: float | bool | str | None = None
-    # default_value: float | bool | str | None = None
-    # desired_value: float | bool | str | None = None
 
     @property
     def alias(self) -> str:
