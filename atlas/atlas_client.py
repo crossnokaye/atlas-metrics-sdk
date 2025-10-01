@@ -101,6 +101,7 @@ class AtlasClient:
         for controlled_device in controlled_devices.get("values", []):
             device = Device(
                 id=controlled_device["device_id"],
+                name=controlled_device["name"],
                 alias=controlled_device["alias"],
                 kind=controlled_device["kind"],
                 control_points=[

@@ -108,6 +108,7 @@ class Device(BaseModel):
     id: str
     alias: str
     kind: str
+    name: str
     control_points: list[ControlPoint] = []
     metrics: list[Metric] = []
     outputs: list[Output] = []
@@ -115,10 +116,6 @@ class Device(BaseModel):
     settings: list[Setting] = []
     upstream: list[Connection] = []
     downstream: list[Connection] = []
-
-    @property
-    def name(self) -> str:
-        return self.alias
 
 
 class AnalogValues(BaseModel):
