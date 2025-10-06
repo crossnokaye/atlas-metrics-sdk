@@ -1,7 +1,7 @@
 import re
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Union
 
 from pydantic import BaseModel
 
@@ -27,10 +27,23 @@ class MetricValue(BaseModel):
     value: float
 
 
+class DetailedMetricValue(BaseModel):
+    facility: str
+    metric: DeviceMetric
+    device_name: str
+    device_alias: str
+    device_kind: str
+    device_id: str
+    aggregation: str
+    timestamp: datetime
+    value: float
+
+
 class MetricValues(BaseModel):
     metric: DeviceMetric
     device_name: str
     device_alias: str
+    device_id: str
     aggregation: str
     values: list[MetricValue]
 
@@ -61,7 +74,8 @@ class MetricsReader:
         end: Optional[datetime] = None,
         interval: int = 60,
         aggregate_by: list[str] = ["avg"],
-    ) -> dict[str, list[MetricValues]]:
+        flatten: bool = False,
+    ) -> Union[dict[str, list[MetricValues]], list[DetailedMetricValue]]:
         """
         Retrieve metric values for a given filter and time range.
         Values are averaged over the sampling interval.
@@ -79,11 +93,15 @@ class MetricsReader:
         aggregate_by: List of strings, optional.
             Aggregation function to use over the interval, defaults to "avg".
             Available agg functions are listed in the /models.AggregateBy class
+        flatten : bool, optional
+            If True, returns a flattened list of DetailedMetricValue objects.
+            If False, returns the nested structure dict[str, list[MetricValues]].
 
         Returns
         -------
-        Dict[str, List[MetricsValues]]
-            Dictionary of metrics values time series indexed by facility short name.
+        Union[Dict[str, List[MetricsValues]], List[DetailedMetricValue]]
+            If flatten=False: Dictionary of metrics values time series indexed by facility short name.
+            If flatten=True: List of DetailedMetricValue objects with all metric details.
 
         Raises
         ------
@@ -121,7 +139,44 @@ class MetricsReader:
 
                 self._process_historical_values(result, facility, device, filtered_constructs_by_id, hvalues)
 
+        if flatten:
+            return self._flatten_result(result)
+
         return result
+
+    def _flatten_result(self, result: dict[str, list[MetricValues]]) -> list[DetailedMetricValue]:
+        """
+        Flatten the nested result structure into a list of DetailedMetricValue objects.
+
+        Parameters
+        ----------
+        result : dict[str, list[MetricValues]]
+            The nested result from the read method
+
+        Returns
+        -------
+        list[DetailedMetricValue]
+            List of DetailedMetricValue objects with all metric details
+        """
+        flattened = []
+        for facility_name, metric_values_list in result.items():
+            for metric_values in metric_values_list:
+                for value in metric_values.values:
+                    flattened.append(
+                        DetailedMetricValue(
+                            facility=facility_name,
+                            metric=metric_values.metric,
+                            device_name=metric_values.device_name,
+                            device_alias=metric_values.device_alias,
+                            device_kind=metric_values.metric.device_kind,
+                            device_id=metric_values.device_id,
+                            aggregation=metric_values.aggregation,
+                            timestamp=value.timestamp,
+                            value=value.value,
+                        )
+                    )
+        flattened.sort(key=lambda x: (x.device_id, x.timestamp))
+        return flattened
 
     def _get_devices(self, facility: Facility, agent_id: str) -> list[Device]:
         try:
@@ -201,6 +256,7 @@ class MetricsReader:
                     ),
                     device_name=device.name,
                     device_alias=device.alias,
+                    device_id=device.id,
                     aggregation=agg,
                     values=[
                         MetricValue(timestamp=datetime.fromtimestamp(ts, tz=timezone.utc), value=val)
