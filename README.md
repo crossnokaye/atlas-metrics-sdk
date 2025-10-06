@@ -113,7 +113,8 @@ current for all compressors:
 ```python
 Filter(metrics=[DeviceMetric(
     device_kind=DeviceKind.compressor,
-    alias_regexp=".*_motorCurrent"
+    alias_regexp=".*_motorCurrent",
+    metric_type=MetricType.control_point
 )
 ```
 
@@ -190,9 +191,20 @@ agent_id = "agent_id"
 devices = client.list_devices(org_id, agent_id)
 print(devices)
 
-# Get point IDs for device aliases
-point_aliases = ["alias1", "alias2"]
-point_ids = client.get_point_ids(org_id, agent_id, point_aliases)
+# Find point ids on devices
+device = devices[0]
+# control points:
+print(device.control_points)
+# metrics
+print(device.metrics)
+# outputs
+print(device.outputs)
+# conditions
+print(device.conditions)
+# settings
+print(device.settings)
+
+point_ids = ["73e697c8-6eae-44e1-a512-6c8083ea7904", "068fb8bb-4680-4cf1-ba29-57e71a80eb5a"]
 print(point_ids)
 
 # Get historical values

@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
-from enum import Enum
-from typing import Dict, List, Union
+from enum import StrEnum
+from typing import Any, TypeAlias, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 
 class Agent(BaseModel):
@@ -16,19 +16,7 @@ class Facility(BaseModel):
     short_name: str
     address: str
     timezone: str
-    agents: List[Agent]
-
-
-class PropertyValue(BaseModel):
-    alias: str
-    name: str
-    kind: str
-    bias: str
-
-
-class Property(BaseModel):
-    key: str
-    value: PropertyValue
+    agents: list[Agent]
 
 
 class Connection(BaseModel):
@@ -36,24 +24,108 @@ class Connection(BaseModel):
     kind: str
 
 
-class Device(BaseModel):
-    id: str
-    name: str
+class DeviceAssociations(BaseModel):
+    upstream: list[Connection] = []
+    downstream: list[Connection] = []
+
+
+class MetricType(StrEnum):
+    control_point = "control_point"
+    metric = "metric"
+    output = "output"
+    condition = "condition"
+    setting = "setting"
+
+
+class ControlPoint(BaseModel):
+    id: str = Field(alias="control_point_id")
+    alias: str
+    bias: str
+    type: str
+    unit: str | None = None
+
+    @property
+    def metric_type(self) -> MetricType:
+        return MetricType.control_point
+
+
+class Metric(BaseModel):
+    id: str = Field(alias="metric_id")
     alias: str
     kind: str
-    properties: List[Property] = []
-    upstream: List[Connection] = []
-    downstream: List[Connection] = []
+    unit: str | None = None
+
+    @property
+    def metric_type(self) -> MetricType:
+        return MetricType.metric
+
+
+class Output(BaseModel):
+    id: str = Field(alias="output_id")
+    alias: str
+    kind: str
+    unit: str | None = None
+
+    @property
+    def metric_type(self) -> MetricType:
+        return MetricType.output
+
+
+class Condition(BaseModel):
+    id: str = Field(alias="condition_id")
+    alias: str
+
+    @property
+    def metric_type(self) -> MetricType:
+        return MetricType.condition
+
+
+class Setting(BaseModel):
+    id: str = Field(alias="setting_id")
+    name: str
+    kind: str
+    unit: str | None = None
+
+    @property
+    def alias(self) -> str:
+        return self.name
+
+    @property
+    def metric_type(self) -> MetricType:
+        return MetricType.setting
+
+
+ControlledDeviceConstruct: TypeAlias = Union[
+    ControlPoint,
+    Metric,
+    Output,
+    Condition,
+    Setting,
+]
+
+
+class Device(BaseModel):
+    id: str
+    alias: str
+    kind: str
+    name: str
+    control_points: list[ControlPoint] = []
+    metrics: list[Metric] = []
+    outputs: list[Output] = []
+    conditions: list[Condition] = []
+    settings: list[Setting] = []
+    upstream: list[Connection] = []
+    downstream: list[Connection] = []
 
 
 class AnalogValues(BaseModel):
-    timestamps: List[int]
-    values: List[float]
+    timestamps: list[int]
+    values: list[float]
 
 
 class DiscreteValues(BaseModel):
-    timestamps: List[int]
-    values: List[bool]
+    timestamps: list[int]
+    values: list[bool]
 
 
 class PointValues(BaseModel):
@@ -61,7 +133,7 @@ class PointValues(BaseModel):
     discrete: DiscreteValues = None
 
 
-class AggregateBy(str, Enum):
+class AggregateBy(StrEnum):
     avg = "avg"
     min = "min"
     max = "max"
@@ -71,7 +143,7 @@ class AggregateBy(str, Enum):
 
 class HistoricalValues(BaseModel):
     point_id: str
-    values: Dict[AggregateBy, PointValues]
+    values: dict[AggregateBy, PointValues]
 
 
 class HourlyRate(BaseModel):
@@ -80,11 +152,11 @@ class HourlyRate(BaseModel):
 
 
 class HourlyRates(BaseModel):
-    usage_rate: List[HourlyRate] = []
-    maximum_demand_charge: List[HourlyRate] = []
-    time_of_use_demand_charge: List[HourlyRate] = []
-    day_ahead_market_rate: List[HourlyRate] = []
-    real_time_market_rate: List[HourlyRate] = []
+    usage_rate: list[HourlyRate] = []
+    maximum_demand_charge: list[HourlyRate] = []
+    time_of_use_demand_charge: list[HourlyRate] = []
+    day_ahead_market_rate: list[HourlyRate] = []
+    real_time_market_rate: list[HourlyRate] = []
 
 
 class HistoricalHourlyRate(BaseModel):
@@ -100,11 +172,11 @@ class HistoricalHourlyRate(BaseModel):
 
 
 class HistoricalHourlyRates(BaseModel):
-    usage_rate: List[HistoricalHourlyRate] = []
-    maximum_demand_charge: List[HistoricalHourlyRate] = []
-    time_of_use_demand_charge: List[HistoricalHourlyRate] = []
-    day_ahead_market_rate: List[HistoricalHourlyRate] = []
-    real_time_market_rate: List[HistoricalHourlyRate] = []
+    usage_rate: list[HistoricalHourlyRate] = []
+    maximum_demand_charge: list[HistoricalHourlyRate] = []
+    time_of_use_demand_charge: list[HistoricalHourlyRate] = []
+    day_ahead_market_rate: list[HistoricalHourlyRate] = []
+    real_time_market_rate: list[HistoricalHourlyRate] = []
 
     def to_hourly_rates(self) -> HourlyRates:
         return HourlyRates(
@@ -116,7 +188,7 @@ class HistoricalHourlyRates(BaseModel):
         )
 
 
-class DeviceKind(str, Enum):
+class DeviceKind(StrEnum):
     compressor = "compressor"
     evaporator = "evaporator"
     condenser = "condenser"
@@ -124,34 +196,35 @@ class DeviceKind(str, Enum):
     energy_meter = "energy meter"
 
 
-class CompressorMetric(str, Enum):
+class CompressorMetric(StrEnum):
     discharge_pressure = "DischargePressure"
     discharge_temperature = "DischargeTemperature"
     suction_pressure = "SuctionPressure"
     suction_temperature = "SuctionTemperature"
 
 
-class CondenserMetric(str, Enum):
+class CondenserMetric(StrEnum):
     discharge_pressure = "DischargePressure"
     discharge_temperature = "DischargeTemperature"
 
 
-class EvaporatorMetric(str, Enum):
+class EvaporatorMetric(StrEnum):
     supply_temperature = "SupplyTemperature"
     return_temperature = "ReturnTemperature"
 
 
-class VesselMetric(str, Enum):
-    suction_pressure = "SuctionPressure"
+class VesselMetric(StrEnum):
+    pressure = "Pressure"
 
 
-DeviceMetricName = Union[CompressorMetric, CondenserMetric, EvaporatorMetric, VesselMetric]
+def construct_from_metric_name(metric_name: str, device_kind: DeviceKind) -> MetricType:
+    # Currently all the metrics are control points
+    if metric_name in [e.value for e in device_metric_mapping[device_kind]]:
+        return MetricType.control_point
+    return None
 
 
-class DeviceMetric(BaseModel):
-    name: str = ""
-    alias_regex: str = ""  # Use name (preferred) or alias regular expression to match the metric
-    device_kind: DeviceKind
+DeviceMetricName: TypeAlias = Union[CompressorMetric, CondenserMetric, EvaporatorMetric, VesselMetric]
 
 
 device_metric_mapping = {
@@ -160,6 +233,35 @@ device_metric_mapping = {
     DeviceKind.evaporator: EvaporatorMetric,
     DeviceKind.vessel: VesselMetric,
 }
+
+
+class DeviceMetric(BaseModel):
+    name: str = ""
+    alias_regex: str = ""  # Use name (preferred) or alias regular expression to match the metric
+    device_kind: DeviceKind
+    metric_type: MetricType
+
+    @model_validator(mode="before")
+    @classmethod
+    def auto_fill_metric_type(cls, values: Any) -> dict[str, Any]:
+        """
+        Auto-fill metric_type based on device_kind and name if not provided.
+        Only does lookup when name is provided (not when using alias_regex).
+        """
+        if not isinstance(values, dict):
+            return values
+
+        # If metric_type is not provided, auto-fill it
+        if "metric_type" not in values or values["metric_type"] is None:
+            name = values.get("name", "")
+            device_kind = values.get("device_kind")
+
+            if name != "" and device_kind:
+                values["metric_type"] = construct_from_metric_name(name, device_kind)
+            else:
+                # If no name provided, we can't auto-fill, so raise an error
+                raise ValueError("metric_type must be provided when using alias_regex")
+        return values
 
 
 class Deployment(BaseModel):
