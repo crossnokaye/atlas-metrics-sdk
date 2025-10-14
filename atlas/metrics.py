@@ -125,17 +125,17 @@ class MetricsReader:
         for facility in facilities:
             agent_id = facility.agents[0].agent_id
             devices = self._get_devices(facility, agent_id)
-            devices_dict = {}
+            device_id_to_device: dict[str, Device] = {}
 
             # find relevant constructs (sources)
-            filtered_constructs_by_id = {}
+            filtered_constructs_by_id: dict[str, ControlledDeviceConstruct] = {}
             # query all devices at once
             queries: list[ReadingQuery] = []
             # map constructs (sources) back to devices
-            construct_to_device_id = {}
+            construct_id_to_device_id: dict[str, str] = {}
             
             for device in devices:
-                devices_dict[device.id] = device
+                device_id_to_device[device.id] = device
                 metrics_filter = metrics_by_device_kind[device.kind]
                 if not metrics_filter:
                     continue
@@ -148,13 +148,14 @@ class MetricsReader:
                 construct_ids = list(filtered_constructs_by_id.keys())
                 agg_enums = [AggregateBy(a) for a in aggregate_by]
                 for source_id in construct_ids:
-                    construct_to_device_id[source_id] = device.id
+                    construct_id_to_device_id[source_id] = device.id
                     queries.append(ReadingQuery(source_id=source_id, aggregate_by=agg_enums))
 
             hvalues = self._get_historical_values(
                 facility, agent_id, start, end, interval, queries
             )
-            self._process_historical_values(result, facility, devices_dict, construct_to_device_id, filtered_constructs_by_id, hvalues)
+            self._process_historical_values(
+                result, facility, device_id_to_device, filtered_constructs_by_id, construct_id_to_device_id, hvalues)
 
         if flatten:
             return self._flatten_result(result)
@@ -247,9 +248,9 @@ class MetricsReader:
         self,
         result: defaultdict[str, list[MetricValues]],
         facility: Facility,
-        device_dict: defaultdict[str, Device],
-        construct_to_device_id: dict[str, str],
-        filtered_constructs_by_id: list[dict[str, ControlledDeviceConstruct]],
+        device_id_to_device: dict[str, Device],
+        filtered_constructs_by_id: dict[str, ControlledDeviceConstruct],
+        construct_id_to_device_id: dict[str, str],
         source_results: list[ReadingSourceResult],
     ) -> None:
         # Results are ordered by timestamp, but are not grouped by source
@@ -260,13 +261,14 @@ class MetricsReader:
         for source_result in source_results:
             source_id = source_result.source_id
             source = filtered_constructs_by_id[source_id]
-            device = device_dict[construct_to_device_id[source_id]]
+            device = device_id_to_device[construct_id_to_device_id[source_id]]
 
+            # timestamp parsing does not handle Z suffix
             reading_timestamp = datetime.fromisoformat(source_result.time.replace('Z', '+00:00'))
 
             for res in source_result.results:
                 aggregation_key = str(res.aggregation) if res.aggregation else "avg"
-                group_key = (device.id, source.alias, source.metric_type, aggregation_key)
+                group_key = (device.id, source.id, source.metric_type, aggregation_key)
 
                 if group_key not in grouped:
                     grouped[group_key] = {
