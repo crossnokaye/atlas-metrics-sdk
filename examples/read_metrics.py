@@ -11,10 +11,9 @@ from atlas import CompressorMetric, DeviceKind, DeviceMetric, Filter, MetricsRea
 
 """
 This example retrieves the suction pressure and motor current for all
-compressors in the given facilities over the past 10 minutes and prints the
-average values for each minute.
+compressors in the given facilities a specified time period, averaging
+using the specified interval and prints the values.
 """
-
 
 def parse_dt(value: str | None) -> datetime | None:
     """Parse a datetime string into a timezone-aware UTC datetime.

@@ -1,5 +1,4 @@
 import logging
-import json
 import tomllib
 from datetime import datetime, timedelta
 from os import environ
@@ -34,7 +33,7 @@ class AtlasHTTPError(requests.HTTPError):
 
 
 class AtlasHTTPClient(requests.Session):
-    BASE_URL = "https://atlassandbox.io"
+    BASE_URL = "https://atlaslive.io"
     LOGIN_ENDPOINT = "/api/login/v3/login"
     USERINFO_ENDPOINT = "/api/login/v3/userinfo"
     ATLAS_REFRESH_TOKEN_ENV_KEY = "ATLAS_REFRESH_TOKEN"
@@ -114,7 +113,7 @@ class AtlasHTTPClient(requests.Session):
         with open(self.DEFAULT_CONFIG_FILE_PATH, "rb") as fn:
             atlas_config_file = tomllib.load(fn)
 
-        refresh_token = atlas_config_file.get("sandbox", {}).get(self.REFRESH_TOKEN, None)
+        refresh_token = atlas_config_file.get("production", {}).get(self.REFRESH_TOKEN, None)
         if not refresh_token:
             raise AtlasConfigError(
                 f"""could not find refresh token for ATLAS" in
