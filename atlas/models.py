@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Any, TypeAlias, Union
+from typing import Any, TypeAlias, Union, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -140,10 +140,26 @@ class AggregateBy(StrEnum):
     first = "first"
     last = "last"
 
+class ReadingQuery(BaseModel):
+    source_id: str
+    aggregate_by: list[AggregateBy]
 
-class HistoricalValues(BaseModel):
-    point_id: str
-    values: dict[AggregateBy, PointValues]
+class ReadingNumberValue(BaseModel):
+    raw: Optional[float] = None
+    scaled: Optional[float] = None
+
+class ReadingResult(BaseModel):
+    aggregation: Optional[AggregateBy] = None
+
+    numberValue: Optional[ReadingNumberValue] = None
+    boolValue: Optional[bool] = None
+    enumValue: Optional[str] = None
+
+class ReadingSourceResult(BaseModel):
+    time: str
+    source_id: str
+    forced: Optional[bool] = None
+    results: list[ReadingResult]
 
 
 class HourlyRate(BaseModel):

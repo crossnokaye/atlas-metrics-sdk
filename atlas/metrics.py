@@ -7,11 +7,13 @@ from pydantic import BaseModel
 
 from atlas.atlas_client import AtlasClient
 from atlas.models import (
+    AggregateBy,
     ControlledDeviceConstruct,
     Device,
     DeviceMetric,
     Facility,
-    HistoricalValues,
+    ReadingQuery,
+    ReadingSourceResult,
     MetricType,
     is_valid_metric,
 )
@@ -123,21 +125,36 @@ class MetricsReader:
         for facility in facilities:
             agent_id = facility.agents[0].agent_id
             devices = self._get_devices(facility, agent_id)
+            devices_dict = {}
 
+            # find relevant constructs (sources)
+            filtered_constructs_by_id = {}
+            # query all devices at once
+            queries: list[ReadingQuery] = []
+            # map constructs (sources) back to devices
+            construct_to_device_id = {}
+            
             for device in devices:
+                devices_dict[device.id] = device
                 metrics_filter = metrics_by_device_kind[device.kind]
                 if not metrics_filter:
                     continue
 
-                filtered_constructs_by_id = self._get_filtered_constructs_by_id(device, metrics_filter)
-                if not filtered_constructs_by_id:
+                new_filtered_constructs_by_id = self._get_filtered_constructs_by_id(device, metrics_filter)
+                if not new_filtered_constructs_by_id:
                     continue
+                filtered_constructs_by_id.update(new_filtered_constructs_by_id)
 
-                hvalues = self._get_historical_values(
-                    facility, agent_id, list(filtered_constructs_by_id.keys()), start, end, interval, aggregate_by
-                )
+                construct_ids = list(filtered_constructs_by_id.keys())
+                agg_enums = [AggregateBy(a) for a in aggregate_by]
+                for source_id in construct_ids:
+                    construct_to_device_id[source_id] = device.id
+                    queries.append(ReadingQuery(source_id=source_id, aggregate_by=agg_enums))
 
-                self._process_historical_values(result, facility, device, filtered_constructs_by_id, hvalues)
+            hvalues = self._get_historical_values(
+                facility, agent_id, start, end, interval, queries
+            )
+            self._process_historical_values(result, facility, devices_dict, construct_to_device_id, filtered_constructs_by_id, hvalues)
 
         if flatten:
             return self._flatten_result(result)
@@ -186,8 +203,9 @@ class MetricsReader:
 
     def _get_filtered_constructs_by_id(
         self, device: Device, metrics: list[DeviceMetric]
-    ) -> list[dict[str, ControlledDeviceConstruct]]:
+    ) -> dict[str, ControlledDeviceConstruct]:
         result: dict[str, ControlledDeviceConstruct] = {}
+
         for metric_type in MetricType:
             # Extract metric names and regex patterns
             metric_names = {metric.name for metric in metrics if metric.metric_type == metric_type}
@@ -213,15 +231,14 @@ class MetricsReader:
         self,
         facility: Facility,
         agent_id: str,
-        point_ids: list[str],
         start: Optional[datetime],
         end: Optional[datetime],
         interval: int,
-        aggregate_by: list[str],
-    ) -> list[HistoricalValues]:
+        queries: list[ReadingQuery],
+    ) -> list[ReadingSourceResult]:
         try:
             return self.client.get_historical_values(
-                facility.organization_id, agent_id, point_ids, start, end, interval, aggregate_by
+                facility.organization_id, agent_id, start, end, queries, interval
             )
         except Exception as e:
             raise Exception(f"Error retrieving historical values for facility {facility.display_name}: {e}")
@@ -230,38 +247,43 @@ class MetricsReader:
         self,
         result: defaultdict[str, list[MetricValues]],
         facility: Facility,
-        device: Device,
+        device_dict: defaultdict[str, Device],
+        construct_to_device_id: dict[str, str],
         filtered_constructs_by_id: list[dict[str, ControlledDeviceConstruct]],
-        hvalues: list[HistoricalValues],
+        source_results: list[ReadingSourceResult],
     ) -> None:
-        for agvalues in hvalues:
-            point_id = agvalues.point_id
+        # Results are ordered by timestamp, but are not grouped by source
+        # Group readings by (device_id, source_alias, metric_type, aggregation)
+        # only using avg for now, but be flexible
+        grouped: dict[tuple[str, str, str, str], dict] = {}
 
-            for agg in agvalues.values.keys():
-                # for agg in aggregations:
-                point_values = agvalues.values[agg]
+        for source_result in source_results:
+            source_id = source_result.source_id
+            source = filtered_constructs_by_id[source_id]
+            device = device_dict[construct_to_device_id[source_id]]
 
-                if point_values.analog:
-                    vals, timestamps = point_values.analog.values, point_values.analog.timestamps
-                elif point_values.discrete:
-                    vals, timestamps = point_values.discrete.values, point_values.discrete.timestamps
-                else:
-                    vals, timestamps = [], []
+            reading_timestamp = datetime.fromisoformat(source_result.time.replace('Z', '+00:00'))
 
-                metrics_values = MetricValues(
-                    metric=DeviceMetric(
-                        name=filtered_constructs_by_id[point_id].alias,
-                        device_kind=device.kind,
-                        metric_type=filtered_constructs_by_id[point_id].metric_type,
-                    ),
-                    device_name=device.name,
-                    device_alias=device.alias,
-                    device_id=device.id,
-                    aggregation=agg,
-                    values=[
-                        MetricValue(timestamp=datetime.fromtimestamp(ts, tz=timezone.utc), value=val)
-                        for ts, val in zip(timestamps, vals)
-                    ],
+            for res in source_result.results:
+                aggregation_key = str(res.aggregation) if res.aggregation else "avg"
+                group_key = (device.id, source.alias, source.metric_type, aggregation_key)
+
+                if group_key not in grouped:
+                    grouped[group_key] = {
+                        "metric": DeviceMetric(name=source.alias, device_kind=device.kind, metric_type=source.metric_type),
+                        "device_name": device.name,
+                        "device_alias": device.alias,
+                        "device_id": device.id,
+                        "aggregation": aggregation_key,
+                        "values": [],
+                    }
+
+                grouped[group_key]["values"].append(
+                    MetricValue(
+                        timestamp=reading_timestamp,
+                        value=res.numberValue.scaled if res.numberValue else None,
+                    )
                 )
 
-            result[facility.short_name].append(metrics_values)
+        for _, mv in grouped.items():
+            result[facility.short_name].append(MetricValues(**mv))

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+import json
 
 from atlas.http_client import AtlasHTTPClient, AtlasHTTPError
 from atlas.models import (
@@ -11,7 +12,8 @@ from atlas.models import (
     DeviceAssociations,
     Facility,
     HistoricalHourlyRates,
-    HistoricalValues,
+    ReadingQuery,
+    ReadingSourceResult,
     HourlyRates,
     Metric,
     Output,
@@ -21,7 +23,7 @@ from atlas.models import (
 
 class AtlasClient:
     """
-    API Client for retrieving historical point values from the ATLAS platform.
+    API Client for retrieving historical reading values from the ATLAS platform.
     """
 
     def __init__(
@@ -123,17 +125,17 @@ class AtlasClient:
         self,
         org_id: str,
         agent_id: str,
-        point_ids: list[str],
         start: Optional[datetime] = None,
         end: Optional[datetime] = None,
+        queries: list[ReadingQuery] | None = None,
         interval: int = 60,
-        aggregate_by: list[AggregateBy] = ["avg"],
         changes_only: bool = False,
-        scaled: bool = True,
-    ) -> list[HistoricalValues]:
+        include_scaled: bool = True,
+        include_raw: bool = False,
+    ) -> list[ReadingSourceResult]:
         """
-        Get historical point values. A single request may return multiple points
-        and multiple aggregation methods for each point.
+        Get historical reading values. A single request may return results for multiple sources
+        and multiple aggregation methods for each source.
 
         Parameters
         ----------
@@ -141,32 +143,32 @@ class AtlasClient:
             organization ID associated with the facility as returned by list_facilities
         agent_id : str
             agent ID associated with the facility as returned by list_facilities
-        point_ids : List[str]
-            list of point IDs to return historical values for as returned by get_point_ids
         start : Optional[datetime], optional
             start time for the query, by default 10 minutes ago
         end : Optional[datetime], optional
             end time for the query, by default now
+        queries : dict[str, list[AggregateBy]], optional
+            a dictionary of source IDs (point IDs) to aggregation methods to apply to each source
         interval : int, optional
             sample interval in seconds, by default 60
-        aggregate_by : List[AggregateBy], optional
-            list of aggregation methods, by default ["avg"]
         changes_only : bool, optional
-            only return data points where the value has changed, by default False
-        scaled : bool, optional
-            return analog data in physical units, by default True
+            list of aggregation methods, by default ["avg"]
+        include_scaled : bool, optional
+            return scaled values for numeric sources, by default True
+        include_raw : bool, optional
+            return raw values for numeric sources, by default False
 
         Returns
         -------
-        List[HistoricalValues]
-            list of historical values
+        List[ReadingSourceResult]
+            list of historical reading results
 
         Raises
         ------
         AtlasHTTPError
             Raised if an error occurs while making the request
         """
-        url = f"/orgs/{org_id}/agents/{agent_id}/facility-readings"
+        url = f"/orgs/{org_id}/agents/{agent_id}/readings/queries"
         if start is not None:
             if start.tzinfo is None:
                 raise ValueError("start must be timezone aware")
@@ -175,8 +177,23 @@ class AtlasClient:
             if end.tzinfo is None:
                 raise ValueError("end must be timezone aware")
 
+        # queries must be provided and non-empty
+        if queries is None or len(queries) == 0:
+            raise ValueError("queries must be a non-empty list of ReadingQuery")
+
+        # Validate each query (aggregate_by is optional)
+        for query in queries:
+            if not isinstance(query, ReadingQuery):
+                raise ValueError("each item in queries must be a ReadingQuery")
+            if not isinstance(query.source_id, str) or query.source_id.strip() == "":
+                raise ValueError("query.source_id must be a non-empty string")
+            if query.aggregate_by is not None:
+                if not isinstance(query.aggregate_by, list):
+                    raise ValueError(f"aggregate_by for source {query.source_id} must be a list if provided")
+                if not all(isinstance(a, AggregateBy) for a in query.aggregate_by):
+                    raise ValueError(f"aggregate_by for source {query.source_id} must be a list of AggregateBy")
+
         payload = {
-            "point_ids": point_ids,
             "start": start.strftime("%Y-%m-%dT%H:%M:%SZ")
             if start
             else (datetime.now(timezone.utc) - timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -184,14 +201,41 @@ class AtlasClient:
             if end
             else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "interval": interval,
-            "aggregate_by": aggregate_by,
             "changes_only": changes_only,
-            "scaled": scaled,
+            "include_scaled": include_scaled,
+            "include_raw": include_raw,
+            # ensure models/enums are JSON-serializable
+            "queries": [q.model_dump(mode="json", exclude_none=True) for q in queries],
         }
         try:
-            response = self.client.request("POST", url, json=payload)
-            values = response.json()
-            return [HistoricalValues(**value) for value in values]
+            # Stream response to handle NDJSON
+            response = self.client.request("POST", url, json=payload, stream=True)
+            results: list[ReadingSourceResult] = []
+            for line in response.iter_lines(decode_unicode=True):
+                if not line:
+                    continue
+                # Parse NDJSON line and map API fields to model fields
+                parsed = json.loads(line)
+                transformed = {
+                    "time": parsed.get("time"),
+                    "source_id": parsed.get("sourceId"),
+                    "forced": parsed.get("forced", False),
+                    "results": [],
+                }
+                for res in parsed.get("results", []):
+                    res_obj = {}
+                    if "aggregation" in res:
+                        res_obj["aggregation"] = res["aggregation"]
+                    if "numberValue" in res:
+                        res_obj["numberValue"] = res["numberValue"]
+                    if "boolValue" in res:
+                        res_obj["boolValue"] = res["boolValue"]
+                    if "enumValue" in res:
+                        res_obj["enumValue"] = res["enumValue"]
+                    transformed["results"].append(res_obj)
+
+                results.append(ReadingSourceResult(**transformed))
+            return results
         except ValueError as e:
             raise AtlasHTTPError(f"{e}, got {response}", response=response)
 

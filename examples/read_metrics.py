@@ -17,7 +17,7 @@ debug = "--debug" in sys.argv
 flatten = "--flatten" in sys.argv
 facilities = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
 if not facilities:
-    print("Usage: python read_metrics.py <facility1> <facility2> ... [--json] [--debug] [--flatten]")
+    print("Usage: python read_metrics.py <facility1ShortName> <facility2ShortName> ... [--json] [--debug] [--flatten]")
     sys.exit(1)
 
 device_kind = DeviceKind.compressor
