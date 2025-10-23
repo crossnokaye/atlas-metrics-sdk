@@ -61,12 +61,15 @@ facilities = args.facilities
 start_time = parse_dt(args.start) if args.start else None
 end_time = parse_dt(args.end) if args.end else None
 
-device_kind = DeviceKind.compressor
+device_kind_compressor = DeviceKind.compressor
 metric_name = CompressorMetric.suction_pressure
 
-compressor_suction_pressure = DeviceMetric(device_kind=device_kind, name=metric_name)
-motor_current = DeviceMetric(device_kind=device_kind, metric_type=MetricType.control_point, alias_regex=".*Current.*")
-filter = Filter(facilities=facilities, metrics=[compressor_suction_pressure, motor_current])
+compressor_suction_pressure = DeviceMetric(device_kind=device_kind_compressor, name=metric_name)
+motor_current = DeviceMetric(device_kind=device_kind_compressor, metric_type=MetricType.control_point, alias_regex=".*Current.*")
+max_capacity = DeviceMetric(device_kind=device_kind_compressor, metric_type=MetricType.setting, alias_regex=".*MaxCapacity.*")
+
+# filter = Filter(facilities=facilities, metrics=[compressor_suction_pressure, motor_current, pressure_differential])
+filter = Filter(facilities=facilities, metrics=[compressor_suction_pressure, motor_current, max_capacity])
 values = MetricsReader(debug=debug).read(
     filter,
     flatten=flatten,

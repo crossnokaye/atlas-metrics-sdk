@@ -211,7 +211,7 @@ print(point_ids)
 start_time = datetime(2023, 5, 1, 0, 0, 0)
 end_time = datetime(2023, 5, 1, 23, 59, 59)
 interval = 60  # 1 minute interval
-historical_values = client.get_historical_values(org_id, agent_id, list(point_ids.values()), start=start_time, end=end_time, interval=interval)
+historical_values = client.get_historical_reading_values(org_id, agent_id, list(point_ids.values()), start=start_time, end=end_time, interval=interval)
 print(historical_values)
 
 # Get hourly energy rates

@@ -12,8 +12,11 @@ from atlas.models import (
     DeviceAssociations,
     Facility,
     HistoricalHourlyRates,
-    ReadingQuery,
+    HistoricalSettingQuery,
+    HistoricalSettingQuerySource,
+    HistoricalReadingQuery,
     ReadingSourceResult,
+    SettingSourceResult,
     HourlyRates,
     Metric,
     Output,
@@ -121,13 +124,13 @@ class AtlasClient:
 
         return devices
 
-    def get_historical_values(
+    def get_historical_reading_values(
         self,
         org_id: str,
         agent_id: str,
         start: Optional[datetime] = None,
         end: Optional[datetime] = None,
-        queries: list[ReadingQuery] | None = None,
+        queries: list[HistoricalReadingQuery] | None = None,
         interval: int = 60,
         changes_only: bool = False,
         include_scaled: bool = True,
@@ -152,7 +155,7 @@ class AtlasClient:
         interval : int, optional
             sample interval in seconds, by default 60
         changes_only : bool, optional
-            list of aggregation methods, by default ["avg"]
+            true when only changed values should be returned
         include_scaled : bool, optional
             return scaled values for numeric sources, by default True
         include_raw : bool, optional
@@ -183,7 +186,7 @@ class AtlasClient:
 
         # Validate each query (aggregate_by is optional)
         for query in queries:
-            if not isinstance(query, ReadingQuery):
+            if not isinstance(query, HistoricalReadingQuery):
                 raise ValueError("each item in queries must be a ReadingQuery")
             if not isinstance(query.source_id, str) or query.source_id.strip() == "":
                 raise ValueError("query.source_id must be a non-empty string")
@@ -235,6 +238,130 @@ class AtlasClient:
                     transformed["results"].append(res_obj)
 
                 results.append(ReadingSourceResult(**transformed))
+            return results
+        except ValueError as e:
+            raise AtlasHTTPError(f"{e}, got {response}", response=response)
+
+    def get_historical_setting_values(
+        self,
+        org_id: str,
+        agent_id: str,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+        queries: list[HistoricalSettingQuery] | None = None,
+        interval: str = "1m",
+        changes_only: bool = False,
+    ) -> list[SettingSourceResult]:
+        """
+        Get historical setting values. A single request may return results for multiple sources
+        and multiple aggregation methods for each source.
+
+        Parameters
+        ----------
+        org_id : str
+            organization ID associated with the facility as returned by list_facilities
+        agent_id : str
+            agent ID associated with the facility as returned by list_facilities
+        start : Optional[datetime], optional
+            start time for the query, by default 10 minutes ago
+        end : Optional[datetime], optional
+            end time for the query, by default now
+        queries : dict[str, list[AggregateBy]], optional
+            a dictionary of source IDs (point IDs) to aggregation methods to apply to each source
+        interval : string, optional
+            sample interval duration string (e.g. "1m", "5m", "1h", "1d"), by default "1m"
+        changes_only : bool, optional
+            true when only changed values should be returned
+
+        Returns
+        -------
+        List[SettingSourceResult]
+            list of historical setting results
+
+        Raises
+        ------
+        AtlasHTTPError
+            Raised if an error occurs while making the request
+        """
+        url = f"/orgs/{org_id}/agents/{agent_id}/settings/queries"
+        if start is not None:
+            if start.tzinfo is None:
+                raise ValueError("start must be timezone aware")
+
+        if end is not None:
+            if end.tzinfo is None:
+                raise ValueError("end must be timezone aware")
+        
+        # queries must be provided and non-empty
+        if queries is None or len(queries) == 0:
+            raise ValueError("queries must be a non-empty list of HistoricalSettingQuery")
+
+        # Validate each query (aggregate_by is optional)
+        for query in queries:
+            if not isinstance(query, HistoricalSettingQuery):
+                raise ValueError("each item in queries must be a HistoricalSettingQuery")
+            if not isinstance(query.source, HistoricalSettingQuerySource):
+                raise ValueError("query.source must be a HistoricalSettingQuerySource")
+            if query.source.device_id is not None:
+                if not isinstance(query.source.device_id, str) or query.source.device_id.strip() == "":
+                    raise ValueError("query.source.device_id must be a non-empty string")
+            if query.source.setting_alias is not None:
+                if not isinstance(query.source.setting_alias, str) or query.source.setting_alias.strip() == "":
+                    raise ValueError("query.source.setting_alias must be a non-empty string")
+            if query.source.setting_id is not None:
+                if not isinstance(query.source.setting_id, str) or query.source.setting_id.strip() == "":
+                    raise ValueError("query.source.setting_id must be a non-empty string")
+            if query.aggregate_by is not None:
+                if not isinstance(query.aggregate_by, list):
+                    raise ValueError(f"aggregate_by for source {query.source_id} must be a list if provided")
+                if not all(isinstance(a, AggregateBy) for a in query.aggregate_by):
+                    raise ValueError(f"aggregate_by for source {query.source_id} must be a list of AggregateBy")
+
+        payload = {
+            "start": start.strftime("%Y-%m-%dT%H:%M:%SZ")
+            if start
+            else (datetime.now(timezone.utc) - timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "end": end.strftime("%Y-%m-%dT%H:%M:%SZ")
+            if end
+            else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "interval": interval,
+            "changes_only": changes_only,
+            # ensure models/enums are JSON-serializable
+            "queries": [q.model_dump(mode="json", exclude_none=True) for q in queries],
+        }
+        try:
+            # Stream response to handle NDJSON
+            response = self.client.request("POST", url, json=payload, stream=True)
+            results: list[SettingSourceResult] = []
+            for line in response.iter_lines(decode_unicode=True):
+                if not line:
+                    continue
+                # Parse NDJSON line and map API fields to model fields
+                parsed = json.loads(line)
+                transformed = {
+                    "time": parsed.get("time"),
+                    "setting_id": parsed.get("settingId"),
+                    "results": [],
+                }
+                for res in parsed.get("results", []):
+                    res_obj = {}
+                    if "aggregation" in res:
+                        res_obj["aggregation"] = res["aggregation"]
+                    if "unset" in res:
+                        res_obj["unset"] = res["unset"]
+                    if "enumValue" in res:
+                        res_obj["enumValue"] = res["enumValue"]
+                    if "boolValue" in res:
+                        res_obj["boolValue"] = res["boolValue"]
+                    if "numberValue" in res:
+                        res_obj["numberValue"] = res["numberValue"]
+                    if "sequenceValue" in res:
+                        res_obj["sequenceValue"] = res["sequenceValue"]
+                    if "scheduleValue" in res:
+                        res_obj["scheduleValue"] = res["scheduleValue"]
+                    transformed["results"].append(res_obj)
+
+                results.append(SettingSourceResult(**transformed))
             return results
         except ValueError as e:
             raise AtlasHTTPError(f"{e}, got {response}", response=response)

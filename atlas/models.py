@@ -140,9 +140,18 @@ class AggregateBy(StrEnum):
     first = "first"
     last = "last"
 
-class ReadingQuery(BaseModel):
+class HistoricalReadingQuery(BaseModel):
     source_id: str
     aggregate_by: list[AggregateBy]
+
+class HistoricalSettingQuerySource(BaseModel):
+    device_id: Optional[str] = None
+    setting_alias: Optional[str] = None
+    setting_id: Optional[str] = None
+
+class HistoricalSettingQuery(BaseModel):
+    source: HistoricalSettingQuerySource
+    aggregate_by: list[AggregateBy] = []
 
 class ReadingNumberValue(BaseModel):
     raw: Optional[float] = None
@@ -160,6 +169,50 @@ class ReadingSourceResult(BaseModel):
     source_id: str
     forced: Optional[bool] = None
     results: list[ReadingResult]
+
+
+class SettingResultSequenceValueItem(BaseModel):
+    name: str
+    stage_values: list[int]
+
+class SettingResultSequenceValue(BaseModel):
+    table: list[SettingResultSequenceValueItem]
+
+
+class SettingResultScheduleValueEventRecurrenceRule(BaseModel):
+    frequency: str
+    interval: Optional[int] = None
+    until: Optional[datetime] = None
+    count: Optional[int] = None
+    by_second: Optional[list[int]] = None
+    by_minute: Optional[list[int]] = None
+    by_hour: Optional[list[int]] = None
+    by_day: Optional[list[str]] = None
+    by_month_day: Optional[list[int]] = None
+    by_month: Optional[list[int]] = None
+
+class SettingResultScheduleValueEvent(BaseModel):
+    start_date: Optional[datetime] = None
+    recurrence_rule: Optional[SettingResultScheduleValueEventRecurrenceRule] = None
+
+class SettingResultScheduleValue(BaseModel):
+    events: list[SettingResultScheduleValueEvent]
+
+
+class SettingResult(BaseModel):
+    aggregation: Optional[AggregateBy] = None
+
+    unset: Optional[bool] = None
+    enumValue: Optional[str] = None
+    boolValue: Optional[bool] = None
+    numberValue: Optional[float] = None
+    sequenceValue: Optional[SettingResultSequenceValue] = None
+    scheduleValue: Optional[SettingResultScheduleValue] = None
+
+class SettingSourceResult(BaseModel):
+    time: str
+    setting_id: str
+    results: list[SettingResult]
 
 
 class HourlyRate(BaseModel):

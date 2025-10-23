@@ -12,8 +12,11 @@ from atlas.models import (
     Device,
     DeviceMetric,
     Facility,
-    ReadingQuery,
+    HistoricalReadingQuery,
+    HistoricalSettingQuery,
+    HistoricalSettingQuerySource,
     ReadingSourceResult,
+    SettingSourceResult,
     MetricType,
     is_valid_metric,
 )
@@ -94,7 +97,8 @@ class MetricsReader:
             Sampling interval in seconds, by default 60.
         aggregate_by: List of strings, optional.
             Aggregation function to use over the interval, defaults to "avg".
-            Available agg functions are listed in the /models.AggregateBy class
+            Available agg functions are listed in the /models.AggregateBy class.
+            Note that the supported aggregation functions will vary by metric source.
         flatten : bool, optional
             If True, returns a flattened list of DetailedMetricValue objects.
             If False, returns the nested structure dict[str, list[MetricValues]].
@@ -129,8 +133,9 @@ class MetricsReader:
 
             # find relevant constructs (sources)
             filtered_constructs_by_id: dict[str, ControlledDeviceConstruct] = {}
-            # query all devices at once
-            queries: list[ReadingQuery] = []
+            reading_queries: list[HistoricalReadingQuery] = []
+            setting_queries: list[HistoricalSettingQuery] = []
+
             # map constructs (sources) back to devices
             construct_id_to_device_id: dict[str, str] = {}
             
@@ -145,17 +150,29 @@ class MetricsReader:
                     continue
                 filtered_constructs_by_id.update(new_filtered_constructs_by_id)
 
-                construct_ids = list(filtered_constructs_by_id.keys())
                 agg_enums = [AggregateBy(a) for a in aggregate_by]
-                for source_id in construct_ids:
-                    construct_id_to_device_id[source_id] = device.id
-                    queries.append(ReadingQuery(source_id=source_id, aggregate_by=agg_enums))
+                for construct_id, construct in filtered_constructs_by_id.items():
+                    construct_id_to_device_id[construct_id] = device.id
+                    if construct.metric_type == MetricType.setting:
+                        source = HistoricalSettingQuerySource(setting_id=construct_id)
+                        setting_queries.append(HistoricalSettingQuery(source=source, aggregate_by=agg_enums))
+                    else:
+                        reading_queries.append(HistoricalReadingQuery(source_id=construct_id, aggregate_by=agg_enums))
 
-            hvalues = self._get_historical_values(
-                facility, agent_id, start, end, interval, queries
-            )
+            reading_values = []
+            if len(reading_queries) > 0:
+                reading_values = self._get_historical_reading_values(
+                    facility, agent_id, start, end, interval, reading_queries
+                )
+
+            setting_values = []
+            if len(setting_queries) > 0:
+                setting_values = self._get_historical_setting_values(
+                    facility, agent_id, start, end, str(interval) + "s", setting_queries
+                )
             self._process_historical_values(
-                result, facility, device_id_to_device, filtered_constructs_by_id, construct_id_to_device_id, hvalues)
+                result, facility, device_id_to_device, filtered_constructs_by_id, construct_id_to_device_id, reading_values, setting_values)
+
 
         if flatten:
             return self._flatten_result(result)
@@ -228,17 +245,33 @@ class MetricsReader:
 
         return result
 
-    def _get_historical_values(
+    def _get_historical_reading_values(
         self,
         facility: Facility,
         agent_id: str,
         start: Optional[datetime],
         end: Optional[datetime],
         interval: int,
-        queries: list[ReadingQuery],
+        queries: list[HistoricalReadingQuery],
     ) -> list[ReadingSourceResult]:
         try:
-            return self.client.get_historical_values(
+            return self.client.get_historical_reading_values(
+                facility.organization_id, agent_id, start, end, queries, interval
+            )
+        except Exception as e:
+            raise Exception(f"Error retrieving historical values for facility {facility.display_name}: {e}")
+
+    def _get_historical_setting_values(
+        self,
+        facility: Facility,
+        agent_id: str,
+        start: Optional[datetime],
+        end: Optional[datetime],
+        interval: str,
+        queries: list[HistoricalSettingQuery],
+    ) -> list[SettingSourceResult]:
+        try:
+            return self.client.get_historical_setting_values(
                 facility.organization_id, agent_id, start, end, queries, interval
             )
         except Exception as e:
@@ -251,20 +284,21 @@ class MetricsReader:
         device_id_to_device: dict[str, Device],
         filtered_constructs_by_id: dict[str, ControlledDeviceConstruct],
         construct_id_to_device_id: dict[str, str],
-        source_results: list[ReadingSourceResult],
+        reading_results: list[ReadingSourceResult],
+        setting_results: list[SettingSourceResult],
     ) -> None:
         # Results are ordered by timestamp, but are not grouped by source
         # Group readings by (device_id, source_alias, metric_type, aggregation)
         # only using avg for now, but be flexible
         grouped: dict[tuple[str, str, str, str], dict] = {}
 
-        for source_result in source_results:
+        for source_result in reading_results:
             source_id = source_result.source_id
             source = filtered_constructs_by_id[source_id]
             device = device_id_to_device[construct_id_to_device_id[source_id]]
 
             # timestamp parsing does not handle Z suffix
-            reading_timestamp = datetime.fromisoformat(source_result.time.replace('Z', '+00:00'))
+            timestamp = datetime.fromisoformat(source_result.time.replace('Z', '+00:00'))
 
             for res in source_result.results:
                 aggregation_key = str(res.aggregation) if res.aggregation else "avg"
@@ -282,10 +316,40 @@ class MetricsReader:
 
                 grouped[group_key]["values"].append(
                     MetricValue(
-                        timestamp=reading_timestamp,
+                        timestamp=timestamp,
                         value=res.numberValue.scaled if res.numberValue else None,
                     )
                 )
+        
+        for source_result in setting_results:
+            source_id = source_result.setting_id
+            source = filtered_constructs_by_id[source_id]
+            device = device_id_to_device[construct_id_to_device_id[source_id]]
+
+            # timestamp parsing does not handle Z suffix
+            timestamp = datetime.fromisoformat(source_result.time.replace('Z', '+00:00'))
+
+            for res in source_result.results:
+                aggregation_key = str(res.aggregation) if res.aggregation else "avg"
+                group_key = (device.id, source.id, source.metric_type, aggregation_key)
+
+                if group_key not in grouped:
+                    grouped[group_key] = {
+                        "metric": DeviceMetric(name=source.alias, device_kind=device.kind, metric_type=source.metric_type),
+                        "device_name": device.name,
+                        "device_alias": device.alias,
+                        "device_id": device.id,
+                        "aggregation": aggregation_key,
+                        "values": [],
+                    }
+
+                if res.numberValue:
+                    grouped[group_key]["values"].append(
+                        MetricValue(
+                            timestamp=timestamp,
+                            value=res.numberValue,
+                        )
+                    )
 
         for _, mv in grouped.items():
             result[facility.short_name].append(MetricValues(**mv))
