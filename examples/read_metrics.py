@@ -1,38 +1,20 @@
 import os
 import sys
 import argparse
-from datetime import datetime, timezone
 
 import orjson
 from pydantic import BaseModel
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from atlas import CompressorMetric, DeviceKind, DeviceMetric, Filter, MetricsReader, MetricType
+from atlas.time_helpers import parse_dt
+
 
 """
 This example retrieves the suction pressure and motor current for all
 compressors in the given facilities a specified time period, averaging
 using the specified interval and prints the values.
 """
-
-def parse_dt(value: str | None) -> datetime | None:
-    """Parse a datetime string into a timezone-aware UTC datetime.
-
-    Accepts ISO-8601 (including "Z") or "YYYY-MM-DD HH:MM:SS". If no timezone
-    is provided, UTC is assumed.
-    """
-    if value is None:
-        return None
-    v = value.strip()
-    if v.endswith("Z"):
-        v = v[:-1] + "+00:00"
-    try:
-        dt = datetime.fromisoformat(v)
-    except ValueError:
-        dt = datetime.strptime(v, "%Y-%m-%d %H:%M:%S")
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt
 
 parser = argparse.ArgumentParser(description="Read compressor metrics from ATLAS")
 parser.add_argument("facilities", nargs="+", help="Facility short names to query")

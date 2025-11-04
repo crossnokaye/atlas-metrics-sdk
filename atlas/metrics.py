@@ -1,11 +1,12 @@
 import re
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional, Union
 
 from pydantic import BaseModel
 
 from atlas.atlas_client import AtlasClient
+from atlas.time_helpers import parse_dt
 from atlas.models import (
     AggregateBy,
     ControlledDeviceConstruct,
@@ -297,8 +298,7 @@ class MetricsReader:
             source = filtered_constructs_by_id[source_id]
             device = device_id_to_device[construct_id_to_device_id[source_id]]
 
-            # timestamp parsing does not handle Z suffix
-            timestamp = datetime.fromisoformat(source_result.time.replace('Z', '+00:00'))
+            timestamp = parse_dt(source_result.time)
 
             for res in source_result.results:
                 aggregation_key = str(res.aggregation) if res.aggregation else "avg"
@@ -326,8 +326,7 @@ class MetricsReader:
             source = filtered_constructs_by_id[source_id]
             device = device_id_to_device[construct_id_to_device_id[source_id]]
 
-            # timestamp parsing does not handle Z suffix
-            timestamp = datetime.fromisoformat(source_result.time.replace('Z', '+00:00'))
+            timestamp = parse_dt(source_result.time)
 
             for res in source_result.results:
                 aggregation_key = str(res.aggregation) if res.aggregation else "avg"

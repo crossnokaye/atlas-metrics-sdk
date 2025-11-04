@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any, TypeAlias, Union, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 
 
 class Agent(BaseModel):
@@ -142,16 +142,58 @@ class AggregateBy(StrEnum):
 
 class HistoricalReadingQuery(BaseModel):
     source_id: str
-    aggregate_by: list[AggregateBy]
+    aggregate_by: list[AggregateBy] = Field(default_factory=list)
+
+    @field_validator("source_id")
+    @classmethod
+    def validate_source_id(cls, value: str) -> str:
+        if not isinstance(value, str) or value.strip() == "":
+            raise ValueError("source_id must be a non-empty string")
+        return value
+
+    @field_validator("aggregate_by", mode="before")
+    @classmethod
+    def validate_aggregate_by(cls, value):
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError("aggregate_by must be a list if provided")
+        # Allow list of AggregateBy or strings convertible to AggregateBy; reject other types early
+        for item in value:
+            if not isinstance(item, (AggregateBy, str)):
+                raise ValueError("aggregate_by must be a list of AggregateBy")
+        return value
+    
 
 class HistoricalSettingQuerySource(BaseModel):
     device_id: Optional[str] = None
     setting_alias: Optional[str] = None
     setting_id: Optional[str] = None
 
+    @field_validator("device_id", "setting_alias", "setting_id")
+    @classmethod
+    def validate_optional_non_empty(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if not isinstance(value, str) or value.strip() == "":
+            raise ValueError("must be a non-empty string")
+        return value
+
 class HistoricalSettingQuery(BaseModel):
     source: HistoricalSettingQuerySource
     aggregate_by: list[AggregateBy] = []
+
+    @field_validator("aggregate_by", mode="before")
+    @classmethod
+    def validate_aggregate_by(cls, value):
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError("aggregate_by must be a list if provided")
+        for item in value:
+            if not isinstance(item, (AggregateBy, str)):
+                raise ValueError("aggregate_by must be a list of AggregateBy")
+        return value
 
 class ReadingNumberValue(BaseModel):
     raw: Optional[float] = None

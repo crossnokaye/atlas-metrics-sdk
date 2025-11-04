@@ -26,7 +26,7 @@ from atlas.models import (
 
 class AtlasClient:
     """
-    API Client for retrieving historical reading values from the ATLAS platform.
+    API Client for retrieving data from the ATLAS platform.
     """
 
     def __init__(
@@ -188,13 +188,6 @@ class AtlasClient:
         for query in queries:
             if not isinstance(query, HistoricalReadingQuery):
                 raise ValueError("each item in queries must be a ReadingQuery")
-            if not isinstance(query.source_id, str) or query.source_id.strip() == "":
-                raise ValueError("query.source_id must be a non-empty string")
-            if query.aggregate_by is not None:
-                if not isinstance(query.aggregate_by, list):
-                    raise ValueError(f"aggregate_by for source {query.source_id} must be a list if provided")
-                if not all(isinstance(a, AggregateBy) for a in query.aggregate_by):
-                    raise ValueError(f"aggregate_by for source {query.source_id} must be a list of AggregateBy")
 
         payload = {
             "start": start.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -296,26 +289,9 @@ class AtlasClient:
         if queries is None or len(queries) == 0:
             raise ValueError("queries must be a non-empty list of HistoricalSettingQuery")
 
-        # Validate each query (aggregate_by is optional)
         for query in queries:
             if not isinstance(query, HistoricalSettingQuery):
                 raise ValueError("each item in queries must be a HistoricalSettingQuery")
-            if not isinstance(query.source, HistoricalSettingQuerySource):
-                raise ValueError("query.source must be a HistoricalSettingQuerySource")
-            if query.source.device_id is not None:
-                if not isinstance(query.source.device_id, str) or query.source.device_id.strip() == "":
-                    raise ValueError("query.source.device_id must be a non-empty string")
-            if query.source.setting_alias is not None:
-                if not isinstance(query.source.setting_alias, str) or query.source.setting_alias.strip() == "":
-                    raise ValueError("query.source.setting_alias must be a non-empty string")
-            if query.source.setting_id is not None:
-                if not isinstance(query.source.setting_id, str) or query.source.setting_id.strip() == "":
-                    raise ValueError("query.source.setting_id must be a non-empty string")
-            if query.aggregate_by is not None:
-                if not isinstance(query.aggregate_by, list):
-                    raise ValueError(f"aggregate_by for source {query.source_id} must be a list if provided")
-                if not all(isinstance(a, AggregateBy) for a in query.aggregate_by):
-                    raise ValueError(f"aggregate_by for source {query.source_id} must be a list of AggregateBy")
 
         payload = {
             "start": start.strftime("%Y-%m-%dT%H:%M:%SZ")
