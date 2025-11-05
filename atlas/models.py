@@ -150,19 +150,6 @@ class HistoricalReadingQuery(BaseModel):
         if not isinstance(value, str) or value.strip() == "":
             raise ValueError("source_id must be a non-empty string")
         return value
-
-    @field_validator("aggregate_by", mode="before")
-    @classmethod
-    def validate_aggregate_by(cls, value):
-        if value is None:
-            return []
-        if not isinstance(value, list):
-            raise ValueError("aggregate_by must be a list if provided")
-        # Allow list of AggregateBy or strings convertible to AggregateBy; reject other types early
-        for item in value:
-            if not isinstance(item, (AggregateBy, str)):
-                raise ValueError("aggregate_by must be a list of AggregateBy")
-        return value
     
 
 class HistoricalSettingQuerySource(BaseModel):
@@ -182,18 +169,6 @@ class HistoricalSettingQuerySource(BaseModel):
 class HistoricalSettingQuery(BaseModel):
     source: HistoricalSettingQuerySource
     aggregate_by: list[AggregateBy] = []
-
-    @field_validator("aggregate_by", mode="before")
-    @classmethod
-    def validate_aggregate_by(cls, value):
-        if value is None:
-            return []
-        if not isinstance(value, list):
-            raise ValueError("aggregate_by must be a list if provided")
-        for item in value:
-            if not isinstance(item, (AggregateBy, str)):
-                raise ValueError("aggregate_by must be a list of AggregateBy")
-        return value
 
 class ReadingNumberValue(BaseModel):
     raw: Optional[float] = None
