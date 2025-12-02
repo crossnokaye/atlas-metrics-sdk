@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Any, TypeAlias, Union
+from typing import Any, TypeAlias, Union, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 
 
 class Agent(BaseModel):
@@ -140,10 +140,96 @@ class AggregateBy(StrEnum):
     first = "first"
     last = "last"
 
+class HistoricalReadingQuery(BaseModel):
+    source_id: str
+    aggregate_by: list[AggregateBy] = Field(default_factory=list)
 
-class HistoricalValues(BaseModel):
-    point_id: str
-    values: dict[AggregateBy, PointValues]
+    @field_validator("source_id")
+    @classmethod
+    def validate_source_id(cls, value: str) -> str:
+        if not isinstance(value, str) or value.strip() == "":
+            raise ValueError("source_id must be a non-empty string")
+        return value
+    
+
+class HistoricalSettingQuerySource(BaseModel):
+    device_id: Optional[str] = None
+    setting_alias: Optional[str] = None
+    setting_id: Optional[str] = None
+
+    @field_validator("device_id", "setting_alias", "setting_id")
+    @classmethod
+    def validate_optional_non_empty(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if not isinstance(value, str) or value.strip() == "":
+            raise ValueError("must be a non-empty string")
+        return value
+
+class HistoricalSettingQuery(BaseModel):
+    source: HistoricalSettingQuerySource
+    aggregate_by: list[AggregateBy] = []
+
+class ReadingNumberValue(BaseModel):
+    raw: Optional[float] = None
+    scaled: Optional[float] = None
+
+class ReadingResult(BaseModel):
+    aggregation: Optional[AggregateBy] = None
+
+    numberValue: Optional[ReadingNumberValue] = None
+    boolValue: Optional[bool] = None
+    enumValue: Optional[str] = None
+
+class ReadingSourceResult(BaseModel):
+    time: str
+    source_id: str
+    forced: Optional[bool] = None
+    results: list[ReadingResult]
+
+
+class SettingResultSequenceValueItem(BaseModel):
+    name: str
+    stage_values: list[int]
+
+class SettingResultSequenceValue(BaseModel):
+    table: list[SettingResultSequenceValueItem]
+
+
+class SettingResultScheduleValueEventRecurrenceRule(BaseModel):
+    frequency: str
+    interval: Optional[int] = None
+    until: Optional[datetime] = None
+    count: Optional[int] = None
+    by_second: Optional[list[int]] = None
+    by_minute: Optional[list[int]] = None
+    by_hour: Optional[list[int]] = None
+    by_day: Optional[list[str]] = None
+    by_month_day: Optional[list[int]] = None
+    by_month: Optional[list[int]] = None
+
+class SettingResultScheduleValueEvent(BaseModel):
+    start_date: Optional[datetime] = None
+    recurrence_rule: Optional[SettingResultScheduleValueEventRecurrenceRule] = None
+
+class SettingResultScheduleValue(BaseModel):
+    events: list[SettingResultScheduleValueEvent]
+
+
+class SettingResult(BaseModel):
+    aggregation: Optional[AggregateBy] = None
+
+    unset: Optional[bool] = None
+    enumValue: Optional[str] = None
+    boolValue: Optional[bool] = None
+    numberValue: Optional[float] = None
+    sequenceValue: Optional[SettingResultSequenceValue] = None
+    scheduleValue: Optional[SettingResultScheduleValue] = None
+
+class SettingSourceResult(BaseModel):
+    time: str
+    setting_id: str
+    results: list[SettingResult]
 
 
 class HourlyRate(BaseModel):
