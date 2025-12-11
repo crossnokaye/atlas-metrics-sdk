@@ -317,7 +317,7 @@ class MetricsReader:
                 grouped[group_key]["values"].append(
                     MetricValue(
                         timestamp=timestamp,
-                        value=res.numberValue.scaled if res.numberValue else float('nan'),
+                        value=res.numberValue.scaled if res.numberValue else None,
                     )
                 )
         
