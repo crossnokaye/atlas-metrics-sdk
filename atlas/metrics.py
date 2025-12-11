@@ -152,7 +152,7 @@ class MetricsReader:
                 filtered_constructs_by_id.update(new_filtered_constructs_by_id)
 
                 agg_enums = [AggregateBy(a) for a in aggregate_by]
-                for construct_id, construct in filtered_constructs_by_id.items():
+                for construct_id, construct in new_filtered_constructs_by_id.items():
                     construct_id_to_device_id[construct_id] = device.id
                     if construct.metric_type == MetricType.setting:
                         source = HistoricalSettingQuerySource(setting_id=construct_id)
