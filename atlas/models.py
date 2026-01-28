@@ -128,9 +128,15 @@ class DiscreteValues(BaseModel):
     values: list[bool]
 
 
+class StructuredValues(BaseModel):
+    timestamps: list[int]
+    values: list[str]
+
+
 class PointValues(BaseModel):
     analog: AnalogValues = None
     discrete: DiscreteValues = None
+    structured: StructuredValues = None
 
 
 class AggregateBy(StrEnum):
