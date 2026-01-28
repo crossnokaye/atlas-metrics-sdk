@@ -190,7 +190,7 @@ class ReadingSourceResult(BaseModel):
 
 class SettingResultSequenceValueItem(BaseModel):
     name: str
-    stage_values: list[int]
+    stage_values: list[int] = Field(alias="stageValues")
 
 class SettingResultSequenceValue(BaseModel):
     table: list[SettingResultSequenceValueItem]
@@ -275,6 +275,7 @@ class HistoricalHourlyRates(BaseModel):
 
 
 class DeviceKind(StrEnum):
+    compressor_sequencer = "compressor sequencer"
     compressor = "compressor"
     evaporator = "evaporator"
     condenser = "condenser"
