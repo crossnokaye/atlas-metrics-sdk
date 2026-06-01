@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Optional, Type, TypeVar
 import json
 
 from atlas.http_client import AtlasHTTPClient, AtlasHTTPError
@@ -22,6 +22,37 @@ from atlas.models import (
     Output,
     Setting,
 )
+
+
+T = TypeVar("T")
+
+def _is_pydantic_model(obj: object) -> bool:
+    """Checks if the object is a Pydantic model"""
+    return hasattr(obj, "model_fields") and hasattr(obj, "model_dump")
+
+
+def _matches_pydantic_model(obj: Any, target: type[T]) -> bool:
+    """
+    Validate `obj` as a Pydantic model with the same fields as `target`.
+
+    Checks that `obj` model's class name and structure (model_fields) match the expected Pydantic
+    model `target`.  instead of using isinstance(). This avoids class identity & comparison
+    issues that can occur with `isinstance()` checks in hot-reloading environments
+    (eg, Jupyter/interactive shells, DAG-based data pipelining tools, other interactive envs).
+
+    Args:
+        obj: The object to validate
+        target: The Pydantic model class to compare against
+
+    Returns:
+        True if obj has the same class name and all the fields defined in target
+    """
+    if not _is_pydantic_model(obj):
+        raise ValueError(f"Expected Pydantic model, got {type(obj).__name__}")
+    return (
+        target.__name__ == type(obj).__name__
+        and set(target.model_fields.keys()) == set(type(obj).model_fields.keys())
+    )
 
 
 class AtlasClient:
@@ -186,8 +217,8 @@ class AtlasClient:
 
         # Validate each query (aggregate_by is optional)
         for query in queries:
-            if not isinstance(query, HistoricalReadingQuery):
-                raise ValueError("each item in queries must be a ReadingQuery")
+            if not _matches_pydantic_model(query, HistoricalReadingQuery):
+                raise ValueError("each item in queries must be a HistoricalReadingQuery")
 
         payload = {
             "start": start.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -290,7 +321,7 @@ class AtlasClient:
             raise ValueError("queries must be a non-empty list of HistoricalSettingQuery")
 
         for query in queries:
-            if not isinstance(query, HistoricalSettingQuery):
+            if not _matches_pydantic_model(query, HistoricalSettingQuery):
                 raise ValueError("each item in queries must be a HistoricalSettingQuery")
 
         payload = {
