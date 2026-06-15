@@ -3,7 +3,6 @@ import tomllib
 from datetime import datetime, timedelta
 from os import environ
 from pathlib import Path
-from typing import Optional, Union
 from urllib.parse import urljoin
 
 import requests
@@ -48,8 +47,8 @@ class AtlasHTTPClient(requests.Session):
 
     def __init__(
         self,
-        refresh_token: Optional[str] = None,
-        debug: Optional[bool] = False,
+        refresh_token: str | None = None,
+        debug: bool | None = False,
         **kwargs,
     ):
         """
@@ -78,7 +77,7 @@ class AtlasHTTPClient(requests.Session):
     def get_user_id(self):
         return self._user_id
 
-    def _get_refresh_token(self, refresh_token: Union[str, None]) -> str:
+    def _get_refresh_token(self, refresh_token: str | None) -> str:
         """
         Parameters
         ----------

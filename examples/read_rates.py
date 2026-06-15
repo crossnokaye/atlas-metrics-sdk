@@ -6,12 +6,11 @@ import orjson
 from pydantic import BaseModel
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from typing import List
 
 from atlas import HourlyRates, RateFilter, RatesReader
 
 
-def print_rates(title: str, rates: List[HourlyRates]):
+def print_rates(title: str, rates: list[HourlyRates]):
     if rates:
         print(title)
         for rate in rates:

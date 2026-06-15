@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def parse_dt(value: str | None) -> datetime | None:
@@ -17,5 +17,5 @@ def parse_dt(value: str | None) -> datetime | None:
     except ValueError:
         dt = datetime.strptime(v, "%Y-%m-%d %H:%M:%S")
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt

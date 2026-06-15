@@ -1,6 +1,5 @@
 import json
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from atlas.http_client import AtlasHTTPClient, AtlasHTTPError
 from atlas.models import (
@@ -29,8 +28,8 @@ class AtlasClient:
 
     def __init__(
         self,
-        refresh_token: Optional[str] = None,
-        debug: Optional[bool] = False,
+        refresh_token: str | None = None,
+        debug: bool | None = False,
     ):
         """
         Parameters
@@ -126,8 +125,8 @@ class AtlasClient:
         self,
         org_id: str,
         agent_id: str,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         queries: list[HistoricalReadingQuery] | None = None,
         interval: int = 60,
         changes_only: bool = False,
@@ -190,10 +189,10 @@ class AtlasClient:
         payload = {
             "start": start.strftime("%Y-%m-%dT%H:%M:%SZ")
             if start
-            else (datetime.now(timezone.utc) - timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            else (datetime.now(UTC) - timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "end": end.strftime("%Y-%m-%dT%H:%M:%SZ")
             if end
-            else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            else datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "interval": interval,
             "changes_only": changes_only,
             "include_scaled": include_scaled,
@@ -237,8 +236,8 @@ class AtlasClient:
         self,
         org_id: str,
         agent_id: str,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         queries: list[HistoricalSettingQuery] | None = None,
         interval: str = "1m",
         changes_only: bool = False,
@@ -294,10 +293,10 @@ class AtlasClient:
         payload = {
             "start": start.strftime("%Y-%m-%dT%H:%M:%SZ")
             if start
-            else (datetime.now(timezone.utc) - timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            else (datetime.now(UTC) - timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "end": end.strftime("%Y-%m-%dT%H:%M:%SZ")
             if end
-            else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            else datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "interval": interval,
             "changes_only": changes_only,
             # ensure models/enums are JSON-serializable
@@ -344,8 +343,8 @@ class AtlasClient:
         self,
         org_id: str,
         agent_id: str,
-        since: Optional[datetime] = None,
-        until: Optional[datetime] = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
     ) -> HourlyRates:
         """
         Get hourly rates for a given facility.
@@ -383,10 +382,10 @@ class AtlasClient:
         params = {
             "since": since.strftime("%Y-%m-%dT%H:%M:%SZ")
             if since
-            else (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            else (datetime.now(UTC) - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "until": until.strftime("%Y-%m-%dT%H:%M:%SZ")
             if until
-            else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            else datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
         try:
             response = self.client.request("GET", url, params=params)

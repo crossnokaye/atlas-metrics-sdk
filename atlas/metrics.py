@@ -1,7 +1,6 @@
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Optional, Union
 
 from pydantic import BaseModel
 
@@ -59,7 +58,7 @@ class MetricsReader:
     High level API Client for retrieving metrics point values from the ATLAS platform.
     """
 
-    def __init__(self, refresh_token: Optional[str] = None, debug: Optional[bool] = False):
+    def __init__(self, refresh_token: str | None = None, debug: bool | None = False):
         """
         Parameters
         ----------
@@ -76,12 +75,12 @@ class MetricsReader:
     def read(
         self,
         filter: Filter,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         interval: int = 60,
         aggregate_by: list[str] = ["avg"],
         flatten: bool = False,
-    ) -> Union[dict[str, list[MetricValues]], list[DetailedMetricValue]]:
+    ) -> dict[str, list[MetricValues]] | list[DetailedMetricValue]:
         """
         Retrieve metric values for a given filter and time range.
         Values are averaged over the sampling interval.
@@ -257,8 +256,8 @@ class MetricsReader:
         self,
         facility: Facility,
         agent_id: str,
-        start: Optional[datetime],
-        end: Optional[datetime],
+        start: datetime | None,
+        end: datetime | None,
         interval: int,
         queries: list[HistoricalReadingQuery],
     ) -> list[ReadingSourceResult]:
@@ -273,8 +272,8 @@ class MetricsReader:
         self,
         facility: Facility,
         agent_id: str,
-        start: Optional[datetime],
-        end: Optional[datetime],
+        start: datetime | None,
+        end: datetime | None,
         interval: str,
         queries: list[HistoricalSettingQuery],
     ) -> list[SettingSourceResult]:
