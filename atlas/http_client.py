@@ -107,7 +107,7 @@ class AtlasHTTPClient(requests.Session):
 
         if not self.DEFAULT_CONFIG_FILE_PATH.exists():
             raise AtlasConfigError(
-                f"""No refresh token provided, and ATLAS config file not found at {self.DEFAULT_CONFIG_FILE_PATH}"""
+                f"""No refresh token provided, and ATLAS config file not found at {self.DEFAULT_CONFIG_FILE_PATH}""",
             )
 
         with open(self.DEFAULT_CONFIG_FILE_PATH, "rb") as fn:
@@ -117,7 +117,7 @@ class AtlasHTTPClient(requests.Session):
         if not refresh_token:
             raise AtlasConfigError(
                 f"""could not find refresh token for ATLAS" in
-                {self.DEFAULT_CONFIG_FILE_PATH}"""
+                {self.DEFAULT_CONFIG_FILE_PATH}""",
             )
 
         return refresh_token
@@ -154,7 +154,7 @@ class AtlasHTTPClient(requests.Session):
                 )
             self._expires_at = datetime.now() + timedelta(seconds=expires_in)
             userinfo = requests.get(
-                self._userinfo_url, headers={self.AUTHORIZATION: f"{self.BEARER} {self._access_token}"}
+                self._userinfo_url, headers={self.AUTHORIZATION: f"{self.BEARER} {self._access_token}"},
             )
             userinfo.raise_for_status()
             data = userinfo.json()

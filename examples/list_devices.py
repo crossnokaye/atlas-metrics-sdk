@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     if json_output:
         print(
-            orjson.dumps(by_kind, default=lambda x: x.model_dump() if isinstance(x, BaseModel) else x).decode("utf-8")
+            orjson.dumps(by_kind, default=lambda x: x.model_dump() if isinstance(x, BaseModel) else x).decode("utf-8"),
         )
         sys.exit(0)
 

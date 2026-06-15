@@ -163,13 +163,13 @@ class MetricsReader:
             reading_values = []
             if len(reading_queries) > 0:
                 reading_values = self._get_historical_reading_values(
-                    facility, agent_id, start, end, interval, reading_queries
+                    facility, agent_id, start, end, interval, reading_queries,
                 )
 
             setting_values = []
             if len(setting_queries) > 0:
                 setting_values = self._get_historical_setting_values(
-                    facility, agent_id, start, end, str(interval) + "s", setting_queries
+                    facility, agent_id, start, end, str(interval) + "s", setting_queries,
                 )
             self._process_historical_values(
                 result, facility, device_id_to_device, filtered_constructs_by_id, construct_id_to_device_id, reading_values, setting_values)
@@ -209,7 +209,7 @@ class MetricsReader:
                             aggregation=metric_values.aggregation,
                             timestamp=value.timestamp,
                             value=value.value,
-                        )
+                        ),
                     )
         flattened.sort(key=lambda x: (x.device_id, x.timestamp))
         return flattened
@@ -221,7 +221,7 @@ class MetricsReader:
             raise Exception(f"Error listing devices for facility {facility.display_name}: {e}")
 
     def _get_filtered_constructs_by_id(
-        self, device: Device, metrics: list[DeviceMetric]
+        self, device: Device, metrics: list[DeviceMetric],
     ) -> dict[str, ControlledDeviceConstruct]:
         result: dict[str, ControlledDeviceConstruct] = {}
 
@@ -257,7 +257,7 @@ class MetricsReader:
     ) -> list[ReadingSourceResult]:
         try:
             return self.client.get_historical_reading_values(
-                facility.organization_id, agent_id, start, end, queries, interval
+                facility.organization_id, agent_id, start, end, queries, interval,
             )
         except Exception as e:
             raise Exception(f"Error retrieving historical values for facility {facility.display_name}: {e}")
@@ -273,7 +273,7 @@ class MetricsReader:
     ) -> list[SettingSourceResult]:
         try:
             return self.client.get_historical_setting_values(
-                facility.organization_id, agent_id, start, end, queries, interval
+                facility.organization_id, agent_id, start, end, queries, interval,
             )
         except Exception as e:
             raise Exception(f"Error retrieving historical values for facility {facility.display_name}: {e}")
@@ -318,7 +318,7 @@ class MetricsReader:
                     MetricValue(
                         timestamp=timestamp,
                         value=res.numberValue.scaled if res.numberValue else None,
-                    )
+                    ),
                 )
         
         for source_result in setting_results:
@@ -347,7 +347,7 @@ class MetricsReader:
                         MetricValue(
                             timestamp=timestamp,
                             value=res.numberValue,
-                        )
+                        ),
                     )
 
         for _, mv in grouped.items():
