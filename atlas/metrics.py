@@ -6,7 +6,6 @@ from typing import Optional, Union
 from pydantic import BaseModel
 
 from atlas.atlas_client import AtlasClient
-from atlas.time_helpers import parse_dt
 from atlas.models import (
     AggregateBy,
     ControlledDeviceConstruct,
@@ -16,11 +15,12 @@ from atlas.models import (
     HistoricalReadingQuery,
     HistoricalSettingQuery,
     HistoricalSettingQuerySource,
+    MetricType,
     ReadingSourceResult,
     SettingSourceResult,
-    MetricType,
     is_valid_metric,
 )
+from atlas.time_helpers import parse_dt
 
 
 class Filter(BaseModel):

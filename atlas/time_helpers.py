@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+
 def parse_dt(value: str | None) -> datetime | None:
     """Parse a datetime string into a timezone-aware UTC datetime.
 

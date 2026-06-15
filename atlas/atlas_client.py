@@ -1,6 +1,6 @@
+import json
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-import json
 
 from atlas.http_client import AtlasHTTPClient, AtlasHTTPError
 from atlas.models import (
@@ -11,14 +11,14 @@ from atlas.models import (
     DeviceAssociations,
     Facility,
     HistoricalHourlyRates,
-    HistoricalSettingQuery,
     HistoricalReadingQuery,
-    ReadingSourceResult,
-    SettingSourceResult,
+    HistoricalSettingQuery,
     HourlyRates,
     Metric,
     Output,
+    ReadingSourceResult,
     Setting,
+    SettingSourceResult,
 )
 
 
