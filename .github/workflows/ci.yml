@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+env:
+  GIT_CONFIG_COUNT: 2
+  GIT_CONFIG_KEY_0: url.https://crossnokaye-robot:${{ secrets.ROBOT_TOKEN }}@github.com.insteadOf
+  GIT_CONFIG_VALUE_0: https://github.com
+  GIT_CONFIG_KEY_1: url.https://crossnokaye-robot:${{ secrets.ROBOT_TOKEN }}@github.com.insteadOf
+  GIT_CONFIG_VALUE_1: ssh://git@github.com
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  linting:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v47
+        with:
+          files: |
+            **/*.py
+
+      - name: Install dependencies
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          pip install ruff
+
+      - name: Run ruff check
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          echo ${{ steps.changed-files.outputs.all_changed_files}}
+          ruff check ${{ steps.changed-files.outputs.all_changed_files}}

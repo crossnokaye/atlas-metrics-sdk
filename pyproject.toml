@@ -20,10 +20,20 @@ line-length = 120
 
 [tool.ruff.lint]
 select = [
-    # pycodestyle
-    "E",
-    # Pyflakes
-    "F",
-    # isort
-    "I",
+    "E",      # pycodestyle
+    "F",      # Pyflakes
+    "I",      # isort
+    "COM812", # trailing commas
+    "S101",   # assert (disallow assert outside tests)
+    "DTZ",    # ban unsafe usage of naive datetime
+    "UP",     # upgrade syntax to newer versions
+]
+
+[tool.ruff.lint.per-file-ignores]
+"atlas/__init__.py" = [
+    "F403" # allow "from {name} import *"
+]
+# Allow certain conventions in test files
+"tests/**/*.py" = [
+    "S101" # assert,
 ]
