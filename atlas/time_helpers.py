@@ -15,7 +15,7 @@ def parse_dt(value: str | None) -> datetime | None:
     try:
         dt = datetime.fromisoformat(v)
     except ValueError:
-        dt = datetime.strptime(v, "%Y-%m-%d %H:%M:%S")
+        dt = datetime.strptime(v, "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=UTC)
     return dt

@@ -1,20 +1,19 @@
 import os
 import sys
-from datetime import datetime
 
 import orjson
 from pydantic import BaseModel
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from atlas import HourlyRates, RateFilter, RatesReader
+from atlas import HourlyRate, RateFilter, RatesReader
 
 
-def print_rates(title: str, rates: list[HourlyRates]):
+def print_rates(title: str, rates: list[HourlyRate]):
     if rates:
         print(title)
         for rate in rates:
-            print(f"  {datetime.fromtimestamp(rate.start).strftime('%Y-%m-%d %H:%M:%S')}: {rate.rate}")
+            print(f"  {rate.start.isoformat()}: {rate.rate}")
 
 
 """
@@ -29,13 +28,13 @@ if not facilities:
     sys.exit(1)
 
 filter = RateFilter(facilities=facilities)
-rates = RatesReader(debug=debug).read(filter)
+rates_result = RatesReader(debug=debug).read(filter)
 
 if json_output:
-    print(orjson.dumps(rates, default=lambda x: x.model_dump() if isinstance(x, BaseModel) else x).decode("utf-8"))
+    print(orjson.dumps(rates_result, default=lambda x: x.model_dump() if isinstance(x, BaseModel) else x).decode("utf-8"))
     sys.exit(0)
 
-for facility, rates in rates.items():
+for facility, rates in rates_result.items():
     print(f"{facility.capitalize()}")
     print_rates("Usage Rate", rates.usage_rate)
     print_rates("Maximum Demand Charge", rates.maximum_demand_charge)
