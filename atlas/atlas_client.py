@@ -4,7 +4,6 @@ import json
 
 from atlas.http_client import AtlasHTTPClient, AtlasHTTPError
 from atlas.models import (
-    AggregateBy,
     Condition,
     ControlPoint,
     Deployment,
@@ -13,7 +12,6 @@ from atlas.models import (
     Facility,
     HistoricalHourlyRates,
     HistoricalSettingQuery,
-    HistoricalSettingQuerySource,
     HistoricalReadingQuery,
     ReadingSourceResult,
     SettingSourceResult,
