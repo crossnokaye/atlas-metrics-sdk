@@ -46,8 +46,12 @@ device_kind_compressor = DeviceKind.compressor
 metric_name = CompressorMetric.suction_pressure
 
 compressor_suction_pressure = DeviceMetric(device_kind=device_kind_compressor, name=metric_name)
-motor_current = DeviceMetric(device_kind=device_kind_compressor, metric_type=MetricType.control_point, alias_regex=".*Current.*")
-max_capacity = DeviceMetric(device_kind=device_kind_compressor, metric_type=MetricType.setting, alias_regex=".*MaxCapacity.*")
+motor_current = DeviceMetric(
+    device_kind=device_kind_compressor, metric_type=MetricType.control_point, alias_regex=".*Current.*",
+)
+max_capacity = DeviceMetric(
+    device_kind=device_kind_compressor, metric_type=MetricType.setting, alias_regex=".*MaxCapacity.*",
+)
 
 # filter = Filter(facilities=facilities, metrics=[compressor_suction_pressure, motor_current, pressure_differential])
 filter = Filter(facilities=facilities, metrics=[compressor_suction_pressure, motor_current, max_capacity])

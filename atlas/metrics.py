@@ -172,7 +172,14 @@ class MetricsReader:
                     facility, agent_id, start, end, str(interval) + "s", setting_queries,
                 )
             self._process_historical_values(
-                result, facility, device_id_to_device, filtered_constructs_by_id, construct_id_to_device_id, reading_values, setting_values)
+                result,
+                facility,
+                device_id_to_device,
+                filtered_constructs_by_id,
+                construct_id_to_device_id,
+                reading_values,
+                setting_values,
+            )
 
 
         if flatten:
@@ -306,7 +313,9 @@ class MetricsReader:
 
                 if group_key not in grouped:
                     grouped[group_key] = {
-                        "metric": DeviceMetric(name=source.alias, device_kind=device.kind, metric_type=source.metric_type),
+                        "metric": DeviceMetric(
+                            name=source.alias, device_kind=device.kind, metric_type=source.metric_type,
+                        ),
                         "device_name": device.name,
                         "device_alias": device.alias,
                         "device_id": device.id,
@@ -334,7 +343,9 @@ class MetricsReader:
 
                 if group_key not in grouped:
                     grouped[group_key] = {
-                        "metric": DeviceMetric(name=source.alias, device_kind=device.kind, metric_type=source.metric_type),
+                        "metric": DeviceMetric(
+                            name=source.alias, device_kind=device.kind, metric_type=source.metric_type,
+                        ),
                         "device_name": device.name,
                         "device_alias": device.alias,
                         "device_id": device.id,
