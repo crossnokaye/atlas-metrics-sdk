@@ -4,7 +4,6 @@ import json
 
 from atlas.http_client import AtlasHTTPClient, AtlasHTTPError
 from atlas.models import (
-    AggregateBy,
     Condition,
     ControlPoint,
     Deployment,
