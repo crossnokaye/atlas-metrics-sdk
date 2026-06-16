@@ -6,7 +6,7 @@ import orjson
 from pydantic import BaseModel
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from atlas import AtlasClient, Device
+from atlas import AtlasClient, Device, Facility
 
 
 class PropertyValue(BaseModel):
@@ -28,17 +28,17 @@ def list_devices(facilities: list[str], debug: bool = False) -> DeviceList:
     """
     client = AtlasClient(debug=debug)
     try:
-        facilities = client.filter_facilities(facilities)
+        filtered_facilities: list[Facility] = client.filter_facilities(facilities)
     except Exception as e:
         print(f"Error listing facilities: {e}")
-        return {}
+        return DeviceList(by_id={}, by_kind={})
 
-    by_kind = {}
-    by_id = {}
-    for facility in sorted(facilities, key=lambda facility: facility.display_name):
+    by_kind: dict[str, dict[str, list[Device]]] = {}
+    by_id: dict[str, Device] = {}
+    for facility in sorted(filtered_facilities, key=lambda facility: facility.display_name):
         if not facility.agents:
             continue
-        device_map = defaultdict(list)
+        device_map: defaultdict[str, list[Device]] = defaultdict(list)
         try:
             devices = client.list_devices(facility.organization_id, facility.agents[0].agent_id)
         except Exception as e:
@@ -68,11 +68,11 @@ if __name__ == "__main__":
         )
         sys.exit(0)
 
-    for facility_name, facility in by_kind.items():
+    for facility_name, devices_by_kind in by_kind.items():
         print(f"Facility: {facility_name}")
-        for kind, by_kind in facility.items():
+        for kind, devices in devices_by_kind.items():
             print(f"  {kind}:")
-            for device in by_kind:
+            for device in devices:
                 print(f"    {device.name}")
                 print("     Control points -----")
                 for cp in device.control_points:

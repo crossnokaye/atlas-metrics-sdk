@@ -10,7 +10,7 @@ from atlas import AtlasClient
 json_output = "--json" in sys.argv
 debug = "--debug" in sys.argv
 
-client = AtlasClient(debug)
+client = AtlasClient(debug=debug)
 facilities = client.list_facilities()
 
 if json_output:
