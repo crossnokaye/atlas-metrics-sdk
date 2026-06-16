@@ -18,4 +18,6 @@ def parse_dt(value: str | None) -> datetime | None:
         dt = datetime.strptime(v, "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=UTC)
+    else:
+        dt = dt.astimezone(UTC)
     return dt

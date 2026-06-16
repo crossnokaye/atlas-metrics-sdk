@@ -55,12 +55,15 @@ class RatesReader:
             Raised if an error occurs.
         """
         facilities = self.client.filter_facilities(filter.facilities)
+        now = datetime.now(UTC)
         if start is None:
-            start = datetime.now(UTC) - timedelta(days=1)
+            start = now - timedelta(days=1)
+        elif start.tzinfo is None:
+            raise ValueError("start must be timezone aware")
         if end is None:
-            end = datetime.now(UTC)
-        result = {}
-
+            end = now
+        elif end.tzinfo is None:
+            raise ValueError("end must be timezone aware")
         result = {}
         for f in facilities:
             try:

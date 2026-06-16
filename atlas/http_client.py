@@ -1,6 +1,6 @@
 import logging
 import tomllib
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from os import environ
 from pathlib import Path
 from urllib.parse import urljoin
