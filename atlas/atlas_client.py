@@ -1,5 +1,6 @@
 import json
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from atlas.http_client import AtlasHTTPClient, AtlasHTTPError
 from atlas.models import (
@@ -195,7 +196,7 @@ class AtlasClient:
             if not isinstance(query, HistoricalReadingQuery):
                 raise ValueError("each item in queries must be a ReadingQuery")
 
-        payload = {
+        payload: dict[str, str | int | bool | list[dict[str, Any]]] = {
             "start": _format_api_datetime(start),
             "end": _format_api_datetime(end),
             "interval": interval,
@@ -298,7 +299,7 @@ class AtlasClient:
             if not isinstance(query, HistoricalSettingQuery):
                 raise ValueError("each item in queries must be a HistoricalSettingQuery")
 
-        payload = {
+        payload: dict[str, str | int | bool | list[dict[str, Any]]] = {
             "start": _format_api_datetime(start),
             "end": _format_api_datetime(end),
             "interval": interval,
