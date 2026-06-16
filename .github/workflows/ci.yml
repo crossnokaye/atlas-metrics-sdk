@@ -15,6 +15,33 @@ env:
   PYTHON_VERSION: "3.11"
 
 jobs:
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Cache Mypy
+        uses: actions/cache@v5
+        with:
+          path: .mypy_cache
+          key: mypy-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            mypy-${{ runner.os }}-${{ github.ref_name }}-
+            mypy-${{ runner.os }}-main-
+            mypy-${{ runner.os }}-
+
+      - name: Run Mypy
+        run: mypy
   linting:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

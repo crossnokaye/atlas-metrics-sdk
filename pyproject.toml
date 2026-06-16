@@ -15,6 +15,12 @@ exclude = ["/examples"]
 [tool.hatch.build.targets.wheel]
 packages = ["atlas"]
 
+[tool.mypy]
+files = ["atlas", "examples"]
+strict = true
+warn_unreachable = true
+explicit_package_bases = true
+
 [tool.ruff]
 line-length = 120
 

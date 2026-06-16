@@ -255,6 +255,14 @@ Ruff format is used to format the source code. Ruff format check is required to 
 ruff format
 ```
 
+### Type Checking
+
+Mypy is used to perform static type checking on the source code. The Mypy check is required to pass. Mypy can run as configured in pyproject.toml, or an additional parameter can scope it to a file, directory, or glob.
+
+```bash
+mypy
+```
+
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
