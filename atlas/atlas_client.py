@@ -489,7 +489,8 @@ class AtlasClient:
 
         return {
             device["id"]: DeviceAssociations(
-                upstream=device.get("upstream", []), downstream=device.get("downstream", []),
+                upstream=device.get("upstream", []),
+                downstream=device.get("downstream", []),
             )
             for device in devices.get("values", [])
         }

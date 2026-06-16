@@ -138,7 +138,7 @@ class MetricsReader:
 
             # map constructs (sources) back to devices
             construct_id_to_device_id: dict[str, str] = {}
-            
+
             for device in devices:
                 device_id_to_device[device.id] = device
                 metrics_filter = metrics_by_device_kind[device.kind]
@@ -162,13 +162,23 @@ class MetricsReader:
             reading_values = []
             if len(reading_queries) > 0:
                 reading_values = self._get_historical_reading_values(
-                    facility, agent_id, start, end, interval, reading_queries,
+                    facility,
+                    agent_id,
+                    start,
+                    end,
+                    interval,
+                    reading_queries,
                 )
 
             setting_values = []
             if len(setting_queries) > 0:
                 setting_values = self._get_historical_setting_values(
-                    facility, agent_id, start, end, str(interval) + "s", setting_queries,
+                    facility,
+                    agent_id,
+                    start,
+                    end,
+                    str(interval) + "s",
+                    setting_queries,
                 )
             self._process_historical_values(
                 result,
@@ -179,7 +189,6 @@ class MetricsReader:
                 reading_values,
                 setting_values,
             )
-
 
         if flatten:
             return self._flatten_result(result)
@@ -227,7 +236,9 @@ class MetricsReader:
             raise Exception(f"Error listing devices for facility {facility.display_name}: {e}")
 
     def _get_filtered_constructs_by_id(
-        self, device: Device, metrics: list[DeviceMetric],
+        self,
+        device: Device,
+        metrics: list[DeviceMetric],
     ) -> dict[str, ControlledDeviceConstruct]:
         result: dict[str, ControlledDeviceConstruct] = {}
 
@@ -263,7 +274,12 @@ class MetricsReader:
     ) -> list[ReadingSourceResult]:
         try:
             return self.client.get_historical_reading_values(
-                facility.organization_id, agent_id, start, end, queries, interval,
+                facility.organization_id,
+                agent_id,
+                start,
+                end,
+                queries,
+                interval,
             )
         except Exception as e:
             raise Exception(f"Error retrieving historical values for facility {facility.display_name}: {e}")
@@ -279,7 +295,12 @@ class MetricsReader:
     ) -> list[SettingSourceResult]:
         try:
             return self.client.get_historical_setting_values(
-                facility.organization_id, agent_id, start, end, queries, interval,
+                facility.organization_id,
+                agent_id,
+                start,
+                end,
+                queries,
+                interval,
             )
         except Exception as e:
             raise Exception(f"Error retrieving historical values for facility {facility.display_name}: {e}")
@@ -313,7 +334,9 @@ class MetricsReader:
                 if group_key not in grouped:
                     grouped[group_key] = {
                         "metric": DeviceMetric(
-                            name=source.alias, device_kind=device.kind, metric_type=source.metric_type,
+                            name=source.alias,
+                            device_kind=device.kind,
+                            metric_type=source.metric_type,
                         ),
                         "device_name": device.name,
                         "device_alias": device.alias,
@@ -328,7 +351,7 @@ class MetricsReader:
                         value=res.numberValue.scaled if res.numberValue else None,
                     ),
                 )
-        
+
         for source_result in setting_results:
             source_id = source_result.setting_id
             source = filtered_constructs_by_id[source_id]
@@ -343,7 +366,9 @@ class MetricsReader:
                 if group_key not in grouped:
                     grouped[group_key] = {
                         "metric": DeviceMetric(
-                            name=source.alias, device_kind=device.kind, metric_type=source.metric_type,
+                            name=source.alias,
+                            device_kind=device.kind,
+                            metric_type=source.metric_type,
                         ),
                         "device_name": device.name,
                         "device_alias": device.alias,

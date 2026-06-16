@@ -153,7 +153,8 @@ class AtlasHTTPClient(requests.Session):
                 )
             self._expires_at = datetime.now(UTC) + timedelta(seconds=expires_in)
             userinfo = requests.get(
-                self._userinfo_url, headers={self.AUTHORIZATION: f"{self.BEARER} {self._access_token}"},
+                self._userinfo_url,
+                headers={self.AUTHORIZATION: f"{self.BEARER} {self._access_token}"},
             )
             userinfo.raise_for_status()
             data = userinfo.json()

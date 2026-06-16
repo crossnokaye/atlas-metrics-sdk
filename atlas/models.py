@@ -134,6 +134,7 @@ class AggregateBy(StrEnum):
     first = "first"
     last = "last"
 
+
 class HistoricalReadingQuery(BaseModel):
     source_id: str
     aggregate_by: list[AggregateBy] = Field(default_factory=list)
@@ -144,7 +145,7 @@ class HistoricalReadingQuery(BaseModel):
         if not isinstance(value, str) or value.strip() == "":
             raise ValueError("source_id must be a non-empty string")
         return value
-    
+
 
 class HistoricalSettingQuerySource(BaseModel):
     device_id: str | None = None
@@ -160,13 +161,16 @@ class HistoricalSettingQuerySource(BaseModel):
             raise ValueError("must be a non-empty string")
         return value
 
+
 class HistoricalSettingQuery(BaseModel):
     source: HistoricalSettingQuerySource
     aggregate_by: list[AggregateBy] = []
 
+
 class ReadingNumberValue(BaseModel):
     raw: float | None = None
     scaled: float | None = None
+
 
 class ReadingResult(BaseModel):
     aggregation: AggregateBy | None = None
@@ -174,6 +178,7 @@ class ReadingResult(BaseModel):
     numberValue: ReadingNumberValue | None = None
     boolValue: bool | None = None
     enumValue: str | None = None
+
 
 class ReadingSourceResult(BaseModel):
     time: str
@@ -185,6 +190,7 @@ class ReadingSourceResult(BaseModel):
 class SettingResultSequenceValueItem(BaseModel):
     name: str
     stage_values: list[int] = Field(alias="stageValues")
+
 
 class SettingResultSequenceValue(BaseModel):
     table: list[SettingResultSequenceValueItem]
@@ -202,9 +208,11 @@ class SettingResultScheduleValueEventRecurrenceRule(BaseModel):
     by_month_day: list[int] | None = None
     by_month: list[int] | None = None
 
+
 class SettingResultScheduleValueEvent(BaseModel):
     start_date: datetime | None = None
     recurrence_rule: SettingResultScheduleValueEventRecurrenceRule | None = None
+
 
 class SettingResultScheduleValue(BaseModel):
     events: list[SettingResultScheduleValueEvent]
@@ -219,6 +227,7 @@ class SettingResult(BaseModel):
     numberValue: float | None = None
     sequenceValue: SettingResultSequenceValue | None = None
     scheduleValue: SettingResultScheduleValue | None = None
+
 
 class SettingSourceResult(BaseModel):
     time: str

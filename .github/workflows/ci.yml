@@ -45,3 +45,8 @@ jobs:
         run: |
           echo ${{ steps.changed-files.outputs.all_changed_files}}
           ruff check ${{ steps.changed-files.outputs.all_changed_files}}
+
+      - name: Run ruff format check
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          ruff format --check --diff ${{ steps.changed-files.outputs.all_changed_files }}

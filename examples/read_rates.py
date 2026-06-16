@@ -31,7 +31,9 @@ filter = RateFilter(facilities=facilities)
 rates_result = RatesReader(debug=debug).read(filter)
 
 if json_output:
-    print(orjson.dumps(rates_result, default=lambda x: x.model_dump() if isinstance(x, BaseModel) else x).decode("utf-8"))
+    print(
+        orjson.dumps(rates_result, default=lambda x: x.model_dump() if isinstance(x, BaseModel) else x).decode("utf-8"),
+    )
     sys.exit(0)
 
 for facility, rates in rates_result.items():

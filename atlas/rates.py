@@ -30,7 +30,10 @@ class RatesReader:
         self.client = AtlasClient(refresh_token=refresh_token, debug=debug)
 
     def read(
-        self, filter: RateFilter, start: datetime | None = None, end: datetime | None = None,
+        self,
+        filter: RateFilter,
+        start: datetime | None = None,
+        end: datetime | None = None,
     ) -> dict[str, HourlyRates]:
         """
         Retrieve hourly energy rates for a given filter and time range.
