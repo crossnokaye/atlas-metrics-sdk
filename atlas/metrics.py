@@ -1,12 +1,10 @@
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Optional, Union
 
 from pydantic import BaseModel
 
 from atlas.atlas_client import AtlasClient
-from atlas.time_helpers import parse_dt
 from atlas.models import (
     AggregateBy,
     ControlledDeviceConstruct,
@@ -16,11 +14,12 @@ from atlas.models import (
     HistoricalReadingQuery,
     HistoricalSettingQuery,
     HistoricalSettingQuerySource,
+    MetricType,
     ReadingSourceResult,
     SettingSourceResult,
-    MetricType,
     is_valid_metric,
 )
+from atlas.time_helpers import parse_dt
 
 
 class Filter(BaseModel):
@@ -59,7 +58,7 @@ class MetricsReader:
     High level API Client for retrieving metrics point values from the ATLAS platform.
     """
 
-    def __init__(self, refresh_token: Optional[str] = None, debug: Optional[bool] = False):
+    def __init__(self, refresh_token: str | None = None, debug: bool | None = False):
         """
         Parameters
         ----------
@@ -76,12 +75,12 @@ class MetricsReader:
     def read(
         self,
         filter: Filter,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         interval: int = 60,
         aggregate_by: list[str] = ["avg"],
         flatten: bool = False,
-    ) -> Union[dict[str, list[MetricValues]], list[DetailedMetricValue]]:
+    ) -> dict[str, list[MetricValues]] | list[DetailedMetricValue]:
         """
         Retrieve metric values for a given filter and time range.
         Values are averaged over the sampling interval.
@@ -139,7 +138,7 @@ class MetricsReader:
 
             # map constructs (sources) back to devices
             construct_id_to_device_id: dict[str, str] = {}
-            
+
             for device in devices:
                 device_id_to_device[device.id] = device
                 metrics_filter = metrics_by_device_kind[device.kind]
@@ -163,17 +162,33 @@ class MetricsReader:
             reading_values = []
             if len(reading_queries) > 0:
                 reading_values = self._get_historical_reading_values(
-                    facility, agent_id, start, end, interval, reading_queries
+                    facility,
+                    agent_id,
+                    start,
+                    end,
+                    interval,
+                    reading_queries,
                 )
 
             setting_values = []
             if len(setting_queries) > 0:
                 setting_values = self._get_historical_setting_values(
-                    facility, agent_id, start, end, str(interval) + "s", setting_queries
+                    facility,
+                    agent_id,
+                    start,
+                    end,
+                    str(interval) + "s",
+                    setting_queries,
                 )
             self._process_historical_values(
-                result, facility, device_id_to_device, filtered_constructs_by_id, construct_id_to_device_id, reading_values, setting_values)
-
+                result,
+                facility,
+                device_id_to_device,
+                filtered_constructs_by_id,
+                construct_id_to_device_id,
+                reading_values,
+                setting_values,
+            )
 
         if flatten:
             return self._flatten_result(result)
@@ -209,7 +224,7 @@ class MetricsReader:
                             aggregation=metric_values.aggregation,
                             timestamp=value.timestamp,
                             value=value.value,
-                        )
+                        ),
                     )
         flattened.sort(key=lambda x: (x.device_id, x.timestamp))
         return flattened
@@ -221,7 +236,9 @@ class MetricsReader:
             raise Exception(f"Error listing devices for facility {facility.display_name}: {e}")
 
     def _get_filtered_constructs_by_id(
-        self, device: Device, metrics: list[DeviceMetric]
+        self,
+        device: Device,
+        metrics: list[DeviceMetric],
     ) -> dict[str, ControlledDeviceConstruct]:
         result: dict[str, ControlledDeviceConstruct] = {}
 
@@ -250,14 +267,19 @@ class MetricsReader:
         self,
         facility: Facility,
         agent_id: str,
-        start: Optional[datetime],
-        end: Optional[datetime],
+        start: datetime | None,
+        end: datetime | None,
         interval: int,
         queries: list[HistoricalReadingQuery],
     ) -> list[ReadingSourceResult]:
         try:
             return self.client.get_historical_reading_values(
-                facility.organization_id, agent_id, start, end, queries, interval
+                facility.organization_id,
+                agent_id,
+                start,
+                end,
+                queries,
+                interval,
             )
         except Exception as e:
             raise Exception(f"Error retrieving historical values for facility {facility.display_name}: {e}")
@@ -266,14 +288,19 @@ class MetricsReader:
         self,
         facility: Facility,
         agent_id: str,
-        start: Optional[datetime],
-        end: Optional[datetime],
+        start: datetime | None,
+        end: datetime | None,
         interval: str,
         queries: list[HistoricalSettingQuery],
     ) -> list[SettingSourceResult]:
         try:
             return self.client.get_historical_setting_values(
-                facility.organization_id, agent_id, start, end, queries, interval
+                facility.organization_id,
+                agent_id,
+                start,
+                end,
+                queries,
+                interval,
             )
         except Exception as e:
             raise Exception(f"Error retrieving historical values for facility {facility.display_name}: {e}")
@@ -306,7 +333,11 @@ class MetricsReader:
 
                 if group_key not in grouped:
                     grouped[group_key] = {
-                        "metric": DeviceMetric(name=source.alias, device_kind=device.kind, metric_type=source.metric_type),
+                        "metric": DeviceMetric(
+                            name=source.alias,
+                            device_kind=device.kind,
+                            metric_type=source.metric_type,
+                        ),
                         "device_name": device.name,
                         "device_alias": device.alias,
                         "device_id": device.id,
@@ -318,9 +349,9 @@ class MetricsReader:
                     MetricValue(
                         timestamp=timestamp,
                         value=res.numberValue.scaled if res.numberValue else None,
-                    )
+                    ),
                 )
-        
+
         for source_result in setting_results:
             source_id = source_result.setting_id
             source = filtered_constructs_by_id[source_id]
@@ -334,7 +365,11 @@ class MetricsReader:
 
                 if group_key not in grouped:
                     grouped[group_key] = {
-                        "metric": DeviceMetric(name=source.alias, device_kind=device.kind, metric_type=source.metric_type),
+                        "metric": DeviceMetric(
+                            name=source.alias,
+                            device_kind=device.kind,
+                            metric_type=source.metric_type,
+                        ),
                         "device_name": device.name,
                         "device_alias": device.alias,
                         "device_id": device.id,
@@ -347,7 +382,7 @@ class MetricsReader:
                         MetricValue(
                             timestamp=timestamp,
                             value=res.numberValue,
-                        )
+                        ),
                     )
 
         for _, mv in grouped.items():

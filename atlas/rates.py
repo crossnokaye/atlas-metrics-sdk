@@ -1,5 +1,4 @@
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime, timedelta
 
 from pydantic import BaseModel
 
@@ -8,7 +7,7 @@ from atlas.models import HourlyRates
 
 
 class RateFilter(BaseModel):
-    facilities: List[str]
+    facilities: list[str]
 
 
 class RatesReader:
@@ -16,7 +15,7 @@ class RatesReader:
     High level API Client for retrieving energy rates from the ATLAS platform.
     """
 
-    def __init__(self, refresh_token: Optional[str] = None, debug: Optional[bool] = False):
+    def __init__(self, refresh_token: str | None = None, debug: bool | None = False):
         """
         Parameters
         ----------
@@ -31,8 +30,11 @@ class RatesReader:
         self.client = AtlasClient(refresh_token=refresh_token, debug=debug)
 
     def read(
-        self, filter: RateFilter, start: Optional[datetime] = None, end: Optional[datetime] = None
-    ) -> Dict[str, HourlyRates]:
+        self,
+        filter: RateFilter,
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> dict[str, HourlyRates]:
         """
         Retrieve hourly energy rates for a given filter and time range.
 
@@ -56,12 +58,15 @@ class RatesReader:
             Raised if an error occurs.
         """
         facilities = self.client.filter_facilities(filter.facilities)
+        now = datetime.now(UTC)
         if start is None:
-            start = datetime.now(timezone.utc) - timedelta(days=1)
+            start = now - timedelta(days=1)
+        elif start.tzinfo is None:
+            raise ValueError("start must be timezone aware")
         if end is None:
-            end = datetime.now(timezone.utc)
-        result = {}
-
+            end = now
+        elif end.tzinfo is None:
+            raise ValueError("end must be timezone aware")
         result = {}
         for f in facilities:
             try:

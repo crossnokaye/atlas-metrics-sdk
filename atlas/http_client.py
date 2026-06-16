@@ -1,9 +1,8 @@
 import logging
 import tomllib
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from os import environ
 from pathlib import Path
-from typing import Optional, Union
 from urllib.parse import urljoin
 
 import requests
@@ -48,8 +47,8 @@ class AtlasHTTPClient(requests.Session):
 
     def __init__(
         self,
-        refresh_token: Optional[str] = None,
-        debug: Optional[bool] = False,
+        refresh_token: str | None = None,
+        debug: bool | None = False,
         **kwargs,
     ):
         """
@@ -67,7 +66,7 @@ class AtlasHTTPClient(requests.Session):
         self._userinfo_url = urljoin(self.BASE_URL, self.USERINFO_ENDPOINT)
         self._api_url_prefix = urljoin(self.BASE_URL, "/api/front/v1")
         self._access_token = None
-        self._expires_at = datetime.now() - timedelta(days=1)
+        self._expires_at = datetime.now(UTC) - timedelta(days=1)
         self._expiration_margin = timedelta(minutes=30)
         if debug:
             logging.basicConfig(level=logging.DEBUG)
@@ -78,7 +77,7 @@ class AtlasHTTPClient(requests.Session):
     def get_user_id(self):
         return self._user_id
 
-    def _get_refresh_token(self, refresh_token: Union[str, None]) -> str:
+    def _get_refresh_token(self, refresh_token: str | None) -> str:
         """
         Parameters
         ----------
@@ -107,7 +106,7 @@ class AtlasHTTPClient(requests.Session):
 
         if not self.DEFAULT_CONFIG_FILE_PATH.exists():
             raise AtlasConfigError(
-                f"""No refresh token provided, and ATLAS config file not found at {self.DEFAULT_CONFIG_FILE_PATH}"""
+                f"""No refresh token provided, and ATLAS config file not found at {self.DEFAULT_CONFIG_FILE_PATH}""",
             )
 
         with open(self.DEFAULT_CONFIG_FILE_PATH, "rb") as fn:
@@ -117,7 +116,7 @@ class AtlasHTTPClient(requests.Session):
         if not refresh_token:
             raise AtlasConfigError(
                 f"""could not find refresh token for ATLAS" in
-                {self.DEFAULT_CONFIG_FILE_PATH}"""
+                {self.DEFAULT_CONFIG_FILE_PATH}""",
             )
 
         return refresh_token
@@ -132,7 +131,7 @@ class AtlasHTTPClient(requests.Session):
             If the response from the auto refresh endpoint does not contain an
             access token or an expires in value.
         """
-        if (self._expires_at - datetime.now()) < self._expiration_margin:
+        if (self._expires_at - datetime.now(UTC)) < self._expiration_margin:
             auth = {
                 self.GRANT_TYPE: self.REFRESH_TOKEN,
                 self.REFRESH_TOKEN: self._refresh_token,
@@ -152,9 +151,10 @@ class AtlasHTTPClient(requests.Session):
                     f"Could not find {self.EXPIRES_IN} in response from {self._auto_refresh_url}",
                     response=response_json,
                 )
-            self._expires_at = datetime.now() + timedelta(seconds=expires_in)
+            self._expires_at = datetime.now(UTC) + timedelta(seconds=expires_in)
             userinfo = requests.get(
-                self._userinfo_url, headers={self.AUTHORIZATION: f"{self.BEARER} {self._access_token}"}
+                self._userinfo_url,
+                headers={self.AUTHORIZATION: f"{self.BEARER} {self._access_token}"},
             )
             userinfo.raise_for_status()
             data = userinfo.json()

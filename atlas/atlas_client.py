@@ -1,10 +1,8 @@
-from datetime import datetime, timedelta, timezone
-from typing import Optional
 import json
+from datetime import UTC, datetime, timedelta
 
 from atlas.http_client import AtlasHTTPClient, AtlasHTTPError
 from atlas.models import (
-    AggregateBy,
     Condition,
     ControlPoint,
     Deployment,
@@ -12,16 +10,21 @@ from atlas.models import (
     DeviceAssociations,
     Facility,
     HistoricalHourlyRates,
-    HistoricalSettingQuery,
-    HistoricalSettingQuerySource,
     HistoricalReadingQuery,
-    ReadingSourceResult,
-    SettingSourceResult,
+    HistoricalSettingQuery,
     HourlyRates,
     Metric,
     Output,
+    ReadingSourceResult,
     Setting,
+    SettingSourceResult,
 )
+
+
+def _format_api_datetime(value: datetime) -> str:
+    if value.tzinfo is None:
+        raise ValueError("value must be timezone aware")
+    return value.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class AtlasClient:
@@ -31,8 +34,8 @@ class AtlasClient:
 
     def __init__(
         self,
-        refresh_token: Optional[str] = None,
-        debug: Optional[bool] = False,
+        refresh_token: str | None = None,
+        debug: bool | None = False,
     ):
         """
         Parameters
@@ -128,8 +131,8 @@ class AtlasClient:
         self,
         org_id: str,
         agent_id: str,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         queries: list[HistoricalReadingQuery] | None = None,
         interval: int = 60,
         changes_only: bool = False,
@@ -172,13 +175,16 @@ class AtlasClient:
             Raised if an error occurs while making the request
         """
         url = f"/orgs/{org_id}/agents/{agent_id}/readings/queries"
-        if start is not None:
-            if start.tzinfo is None:
-                raise ValueError("start must be timezone aware")
+        now = datetime.now(UTC)
+        if start is None:
+            start = now - timedelta(minutes=10)
+        elif start.tzinfo is None:
+            raise ValueError("start must be timezone aware")
 
-        if end is not None:
-            if end.tzinfo is None:
-                raise ValueError("end must be timezone aware")
+        if end is None:
+            end = now
+        elif end.tzinfo is None:
+            raise ValueError("end must be timezone aware")
 
         # queries must be provided and non-empty
         if queries is None or len(queries) == 0:
@@ -190,12 +196,8 @@ class AtlasClient:
                 raise ValueError("each item in queries must be a ReadingQuery")
 
         payload = {
-            "start": start.strftime("%Y-%m-%dT%H:%M:%SZ")
-            if start
-            else (datetime.now(timezone.utc) - timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "end": end.strftime("%Y-%m-%dT%H:%M:%SZ")
-            if end
-            else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "start": _format_api_datetime(start),
+            "end": _format_api_datetime(end),
             "interval": interval,
             "changes_only": changes_only,
             "include_scaled": include_scaled,
@@ -239,8 +241,8 @@ class AtlasClient:
         self,
         org_id: str,
         agent_id: str,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         queries: list[HistoricalSettingQuery] | None = None,
         interval: str = "1m",
         changes_only: bool = False,
@@ -277,14 +279,17 @@ class AtlasClient:
             Raised if an error occurs while making the request
         """
         url = f"/orgs/{org_id}/agents/{agent_id}/settings/queries"
-        if start is not None:
-            if start.tzinfo is None:
-                raise ValueError("start must be timezone aware")
+        now = datetime.now(UTC)
+        if start is None:
+            start = now - timedelta(minutes=10)
+        elif start.tzinfo is None:
+            raise ValueError("start must be timezone aware")
 
-        if end is not None:
-            if end.tzinfo is None:
-                raise ValueError("end must be timezone aware")
-        
+        if end is None:
+            end = now
+        elif end.tzinfo is None:
+            raise ValueError("end must be timezone aware")
+
         # queries must be provided and non-empty
         if queries is None or len(queries) == 0:
             raise ValueError("queries must be a non-empty list of HistoricalSettingQuery")
@@ -294,12 +299,8 @@ class AtlasClient:
                 raise ValueError("each item in queries must be a HistoricalSettingQuery")
 
         payload = {
-            "start": start.strftime("%Y-%m-%dT%H:%M:%SZ")
-            if start
-            else (datetime.now(timezone.utc) - timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "end": end.strftime("%Y-%m-%dT%H:%M:%SZ")
-            if end
-            else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "start": _format_api_datetime(start),
+            "end": _format_api_datetime(end),
             "interval": interval,
             "changes_only": changes_only,
             # ensure models/enums are JSON-serializable
@@ -346,8 +347,8 @@ class AtlasClient:
         self,
         org_id: str,
         agent_id: str,
-        since: Optional[datetime] = None,
-        until: Optional[datetime] = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
     ) -> HourlyRates:
         """
         Get hourly rates for a given facility.
@@ -374,21 +375,20 @@ class AtlasClient:
             Raised if an error occurs while making the request
         """
         url = f"/orgs/{org_id}/agents/{agent_id}/rates"
-        if since is not None:
-            if since.tzinfo is None:
-                raise ValueError("since must be timezone aware")
+        now = datetime.now(UTC)
+        if since is None:
+            since = now - timedelta(hours=24)
+        elif since.tzinfo is None:
+            raise ValueError("since must be timezone aware")
 
-        if until is not None:
-            if until.tzinfo is None:
-                raise ValueError("until must be timezone aware")
+        if until is None:
+            until = now
+        elif until.tzinfo is None:
+            raise ValueError("until must be timezone aware")
 
         params = {
-            "since": since.strftime("%Y-%m-%dT%H:%M:%SZ")
-            if since
-            else (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "until": until.strftime("%Y-%m-%dT%H:%M:%SZ")
-            if until
-            else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "since": _format_api_datetime(since),
+            "until": _format_api_datetime(until),
         }
         try:
             response = self.client.request("GET", url, params=params)
@@ -489,7 +489,8 @@ class AtlasClient:
 
         return {
             device["id"]: DeviceAssociations(
-                upstream=device.get("upstream", []), downstream=device.get("downstream", [])
+                upstream=device.get("upstream", []),
+                downstream=device.get("downstream", []),
             )
             for device in devices.get("values", [])
         }

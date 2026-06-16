@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any, TypeAlias, Union, Optional
+from typing import Any, TypeAlias
 
-from pydantic import BaseModel, Field, model_validator, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class Agent(BaseModel):
@@ -95,13 +95,7 @@ class Setting(BaseModel):
         return MetricType.setting
 
 
-ControlledDeviceConstruct: TypeAlias = Union[
-    ControlPoint,
-    Metric,
-    Output,
-    Condition,
-    Setting,
-]
+ControlledDeviceConstruct: TypeAlias = ControlPoint | Metric | Output | Condition | Setting
 
 
 class Device(BaseModel):
@@ -140,6 +134,7 @@ class AggregateBy(StrEnum):
     first = "first"
     last = "last"
 
+
 class HistoricalReadingQuery(BaseModel):
     source_id: str
     aggregate_by: list[AggregateBy] = Field(default_factory=list)
@@ -150,41 +145,45 @@ class HistoricalReadingQuery(BaseModel):
         if not isinstance(value, str) or value.strip() == "":
             raise ValueError("source_id must be a non-empty string")
         return value
-    
+
 
 class HistoricalSettingQuerySource(BaseModel):
-    device_id: Optional[str] = None
-    setting_alias: Optional[str] = None
-    setting_id: Optional[str] = None
+    device_id: str | None = None
+    setting_alias: str | None = None
+    setting_id: str | None = None
 
     @field_validator("device_id", "setting_alias", "setting_id")
     @classmethod
-    def validate_optional_non_empty(cls, value: Optional[str]) -> Optional[str]:
+    def validate_optional_non_empty(cls, value: str | None) -> str | None:
         if value is None:
             return value
         if not isinstance(value, str) or value.strip() == "":
             raise ValueError("must be a non-empty string")
         return value
 
+
 class HistoricalSettingQuery(BaseModel):
     source: HistoricalSettingQuerySource
     aggregate_by: list[AggregateBy] = []
 
+
 class ReadingNumberValue(BaseModel):
-    raw: Optional[float] = None
-    scaled: Optional[float] = None
+    raw: float | None = None
+    scaled: float | None = None
+
 
 class ReadingResult(BaseModel):
-    aggregation: Optional[AggregateBy] = None
+    aggregation: AggregateBy | None = None
 
-    numberValue: Optional[ReadingNumberValue] = None
-    boolValue: Optional[bool] = None
-    enumValue: Optional[str] = None
+    numberValue: ReadingNumberValue | None = None
+    boolValue: bool | None = None
+    enumValue: str | None = None
+
 
 class ReadingSourceResult(BaseModel):
     time: str
     source_id: str
-    forced: Optional[bool] = None
+    forced: bool | None = None
     results: list[ReadingResult]
 
 
@@ -192,39 +191,43 @@ class SettingResultSequenceValueItem(BaseModel):
     name: str
     stage_values: list[int] = Field(alias="stageValues")
 
+
 class SettingResultSequenceValue(BaseModel):
     table: list[SettingResultSequenceValueItem]
 
 
 class SettingResultScheduleValueEventRecurrenceRule(BaseModel):
     frequency: str
-    interval: Optional[int] = None
-    until: Optional[datetime] = None
-    count: Optional[int] = None
-    by_second: Optional[list[int]] = None
-    by_minute: Optional[list[int]] = None
-    by_hour: Optional[list[int]] = None
-    by_day: Optional[list[str]] = None
-    by_month_day: Optional[list[int]] = None
-    by_month: Optional[list[int]] = None
+    interval: int | None = None
+    until: datetime | None = None
+    count: int | None = None
+    by_second: list[int] | None = None
+    by_minute: list[int] | None = None
+    by_hour: list[int] | None = None
+    by_day: list[str] | None = None
+    by_month_day: list[int] | None = None
+    by_month: list[int] | None = None
+
 
 class SettingResultScheduleValueEvent(BaseModel):
-    start_date: Optional[datetime] = None
-    recurrence_rule: Optional[SettingResultScheduleValueEventRecurrenceRule] = None
+    start_date: datetime | None = None
+    recurrence_rule: SettingResultScheduleValueEventRecurrenceRule | None = None
+
 
 class SettingResultScheduleValue(BaseModel):
     events: list[SettingResultScheduleValueEvent]
 
 
 class SettingResult(BaseModel):
-    aggregation: Optional[AggregateBy] = None
+    aggregation: AggregateBy | None = None
 
-    unset: Optional[bool] = None
-    enumValue: Optional[str] = None
-    boolValue: Optional[bool] = None
-    numberValue: Optional[float] = None
-    sequenceValue: Optional[SettingResultSequenceValue] = None
-    scheduleValue: Optional[SettingResultScheduleValue] = None
+    unset: bool | None = None
+    enumValue: str | None = None
+    boolValue: bool | None = None
+    numberValue: float | None = None
+    sequenceValue: SettingResultSequenceValue | None = None
+    scheduleValue: SettingResultScheduleValue | None = None
+
 
 class SettingSourceResult(BaseModel):
     time: str
@@ -251,7 +254,7 @@ class HistoricalHourlyRate(BaseModel):
 
     @property
     def start_datetime(self) -> datetime:
-        return datetime.fromtimestamp(self.start, tz=timezone.utc)
+        return datetime.fromtimestamp(self.start, tz=UTC)
 
     def to_hourly_rate(self) -> HourlyRate:
         return HourlyRate(start=self.start_datetime, rate=self.rate)
@@ -311,7 +314,7 @@ def construct_from_metric_name(metric_name: str, device_kind: DeviceKind) -> Met
     return None
 
 
-DeviceMetricName: TypeAlias = Union[CompressorMetric, CondenserMetric, EvaporatorMetric, VesselMetric]
+DeviceMetricName: TypeAlias = CompressorMetric | CondenserMetric | EvaporatorMetric | VesselMetric
 
 
 device_metric_mapping = {

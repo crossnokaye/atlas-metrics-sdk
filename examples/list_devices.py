@@ -1,7 +1,6 @@
 import os
 import sys
 from collections import defaultdict
-from typing import Dict, List
 
 import orjson
 from pydantic import BaseModel
@@ -18,11 +17,11 @@ class PropertyValue(BaseModel):
 
 
 class DeviceList(BaseModel):
-    by_id: Dict[str, Device]
-    by_kind: Dict[str, Dict[str, List[Device]]]
+    by_id: dict[str, Device]
+    by_kind: dict[str, dict[str, list[Device]]]
 
 
-def list_devices(facilities: List[str], debug: bool = False) -> DeviceList:
+def list_devices(facilities: list[str], debug: bool = False) -> DeviceList:
     """
     Return the device across all facilities indexed by facility name, then by
     device kind as well as a dictionary of all devices indexed by device ID.
@@ -65,7 +64,7 @@ if __name__ == "__main__":
 
     if json_output:
         print(
-            orjson.dumps(by_kind, default=lambda x: x.model_dump() if isinstance(x, BaseModel) else x).decode("utf-8")
+            orjson.dumps(by_kind, default=lambda x: x.model_dump() if isinstance(x, BaseModel) else x).decode("utf-8"),
         )
         sys.exit(0)
 

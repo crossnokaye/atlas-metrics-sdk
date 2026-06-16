@@ -223,6 +223,38 @@ print(rates)
 
 Contributions are welcome! Please submit a pull request or open an issue to discuss changes.
 
+### Environment Setup
+
+Follow setup in [Installation](#installation), but when creating a virtual environment, install the dev dependencies:
+
+ ```bash
+ python3 -m venv .venv
+ source .venv/bin/activate
+ pip install -r requirements-dev.txt
+ ```
+
+### Linting
+
+Ruff check is used to lint the source code. Ruff check is required to pass for the rules specified in [pyproject.toml](pyproject.toml) before merging a pull request. Ruff check can run for the entire source, or an additional parameter can scope it to a file, directory, or glob.
+
+```bash
+ruff check
+```
+
+The --fix argument can be used to automatically fix some linting errors. Beware that this modifies files in-place.
+
+```bash
+ruff check --fix
+```
+
+### Formatting
+
+Ruff format is used to format the source code. Ruff format check is required to pass for a consistent source shape. Ruff format can run for the entire source, or an additional parameter can scope it to a file, directory, or glob.
+
+```bash
+ruff format
+```
+
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
