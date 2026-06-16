@@ -249,7 +249,7 @@ ruff check --fix
 
 ### Formatting
 
-Ruff format is used to format the source code. Ruff format is not required but recommended for a consistent source shape. Ruff format can run for the entire source, or an additional parameter can scope it to a file, directory, or glob.
+Ruff format is used to format the source code. Ruff format check is required to pass for a consistent source shape. Ruff format can run for the entire source, or an additional parameter can scope it to a file, directory, or glob.
 
 ```bash
 ruff format
