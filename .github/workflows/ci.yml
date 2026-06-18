@@ -4,7 +4,15 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
     types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   GIT_CONFIG_COUNT: 2
@@ -77,3 +85,119 @@ jobs:
         if: steps.changed-files.outputs.any_changed == 'true'
         run: |
           ruff format --check --diff ${{ steps.changed-files.outputs.all_changed_files }}
+
+  api-compatibility:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install "griffe~=2.1.0"
+
+      - name: Generate report
+        id: generate-report
+        run: |
+          if griffe check atlas --search . --against origin/main --verbose > "$RUNNER_TEMP/griffe-report.txt" 2>&1; then
+            echo "No public API changes detected."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            cat "$RUNNER_TEMP/griffe-report.txt"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Annotate pull request files
+        if: steps.generate-report.outputs.changed == 'true'
+        run: |
+          griffe check atlas --search . --against origin/main --format github > "$RUNNER_TEMP/griffe-annotations.txt" 2>&1 || true
+          sed -E 's/(::warning file=[^,]+,line=)0(,title=)/\11\2/' "$RUNNER_TEMP/griffe-annotations.txt"
+
+      - name: Build summary
+        env:
+          API_CHANGED: ${{ steps.generate-report.outputs.changed }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          BASE_URL="https://github.com/${REPO}/blob/${HEAD_SHA}"
+          # Turn leading "path:line:" references into Markdown links to the file at that line.
+          # Module-level findings use line 0; link those to the top of the file with no anchor.
+          link_report() {
+            sed -E \
+              -e "s|^([^[:space:]:]+):([1-9][0-9]*): |[\1:\2](${BASE_URL}/\1#L\2): |" \
+              -e "s|^([^[:space:]:]+):0: |[\1](${BASE_URL}/\1): |" \
+              "$RUNNER_TEMP/griffe-report.txt"
+          }
+          {
+            echo "<!-- griffe-api-check-report -->"
+            echo "## Public API Breaking Changes"
+            if [ "$API_CHANGED" = "true" ]; then
+              echo ":warning: Breaking changes detected"
+              echo
+              link_report
+              echo
+            else
+              echo ":white_check_mark: No breaking changes detected"
+            fi
+            echo
+            echo "---"
+            echo
+            echo "Griffe checked the public API surface for breaking changes against \`origin/main\`."
+            echo
+            echo "> [!NOTE]"
+            echo "> Griffe does not analyze or report on runtime behavior or semantic changes."
+            echo "> "
+            echo "> This report is informational and will not block merging."
+            echo
+          } > "$RUNNER_TEMP/griffe-summary.md"
+
+      - name: Publish summary
+        run: cat "$RUNNER_TEMP/griffe-summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment summary on PR
+        if: github.event.pull_request.head.repo.fork == false
+        uses: actions/github-script@v8
+        env:
+          GRIFFE_SUMMARY: ${{ runner.temp }}/griffe-summary.md
+        with:
+          script: |
+            const fs = require("fs");
+
+            const marker = "<!-- griffe-api-check-report -->";
+            const body = fs.readFileSync(process.env.GRIFFE_SUMMARY, "utf8");
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+            });
+            const existingComment = comments.find((comment) => comment.body?.includes(marker));
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existingComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
