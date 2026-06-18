@@ -32,9 +32,9 @@ class RatesReader:
     def read(
         self,
         filter: RateFilter,
-        start: datetime | None = None,
+        begin: datetime | None = None,
         end: datetime | None = None,
-    ) -> dict[str, HourlyRates]:
+    ) -> list[HourlyRates]:
         """
         Retrieve hourly energy rates for a given filter and time range.
 
@@ -42,7 +42,7 @@ class RatesReader:
         ----------
         filter : Filter
             Filter for energy rates values, defines the list of facilities to retrieve rates for.
-        start : Optional[datetime], optional
+        begin : Optional[datetime], optional
             Start time of the historical values, by default 24 hours ago.
         end : Optional[datetime], optional
             End time of the historical values, by default now.
@@ -59,18 +59,18 @@ class RatesReader:
         """
         facilities = self.client.filter_facilities(filter.facilities)
         now = datetime.now(UTC)
-        if start is None:
-            start = now - timedelta(days=1)
-        elif start.tzinfo is None:
+        if begin is None:
+            begin = now - timedelta(days=1)
+        elif begin.tzinfo is None:
             raise ValueError("start must be timezone aware")
         if end is None:
             end = now
         elif end.tzinfo is None:
             raise ValueError("end must be timezone aware")
-        result = {}
+        result = []
         for f in facilities:
             try:
-                result[f.short_name] = self.client.get_hourly_rates(f.organization_id, f.agents[0].agent_id, start, end)
+                result.append(self.client.get_hourly_rates(f.organization_id, f.agents[0].agent_id, begin, end))
 
             except Exception as e:
                 raise Exception(f"Error retrieving rates for facility {f.display_name}: {e}")

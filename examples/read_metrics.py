@@ -41,8 +41,8 @@ debug = args.debug
 flatten = args.flatten
 interval = args.interval
 facilities = args.facilities
-start_time = parse_dt(args.start) if args.start else None
-end_time = parse_dt(args.end) if args.end else None
+start_time = parse_dt(args.start, "UTC") if args.start else None
+end_time = parse_dt(args.end, "UTC") if args.end else None
 
 device_kind_compressor = DeviceKind.compressor
 metric_name = CompressorMetric.suction_pressure

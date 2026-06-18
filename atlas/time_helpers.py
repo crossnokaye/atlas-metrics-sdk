@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 
-def parse_dt(value: str | None) -> datetime | None:
+def parse_dt(value: str | None, assumed_timezone: str) -> datetime | None:
     """Parse a datetime string into a timezone-aware UTC datetime.
 
     Accepts ISO-8601 (including "Z") or "YYYY-MM-DD HH:MM:SS". If no timezone
@@ -17,6 +17,7 @@ def parse_dt(value: str | None) -> datetime | None:
     except ValueError:
         dt = datetime.strptime(v, "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
     if dt.tzinfo is None:
+        _ = assumed_timezone
         dt = dt.replace(tzinfo=UTC)
     else:
         dt = dt.astimezone(UTC)

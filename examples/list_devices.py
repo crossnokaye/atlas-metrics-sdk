@@ -40,7 +40,7 @@ def list_devices(facilities: list[str], debug: bool = False) -> DeviceList:
             continue
         device_map: defaultdict[str, list[Device]] = defaultdict(list)
         try:
-            devices = client.list_devices(facility.organization_id, facility.agents[0].agent_id)
+            devices = client.list_devices(facility.organization_id, agent_id=facility.agents[0].agent_id)
         except Exception as e:
             print(f"Error listing devices for facility {facility.display_name}: {e}")
             continue

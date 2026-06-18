@@ -202,7 +202,7 @@ filter = RateFilter(facilities=["facility"])
 start_time = datetime(2023, 5, 1, 0, 0, 0)
 end_time = datetime(2023, 5, 1, 23, 59, 59)
 
-rates = RatesReader().read(filter, start=start_time, end=end_time)
+rates = RatesReader().read(filter, begin=start_time, end=end_time)
 ```
 
 ## Low-Level API: AtlasClient

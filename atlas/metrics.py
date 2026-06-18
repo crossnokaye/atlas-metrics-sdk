@@ -1,6 +1,6 @@
 import re
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pydantic import BaseModel
 
@@ -72,6 +72,51 @@ class MetricsReader:
             Enable debug logging, by default False.
         """
         self.client = AtlasClient(refresh_token=refresh_token, debug=debug)
+
+    def read_today(
+        self,
+        filter: Filter,
+        interval: int = 60,
+        aggregate_by: list[str] = ["avg"],
+        flatten: bool = False,
+    ) -> dict[str, list[MetricValues]] | list[DetailedMetricValue]:
+        """
+        Retrieve metric values for a given filter time bound to today.
+        Values are averaged over the sampling interval.
+
+        Parameters
+        ----------
+        filter : Filter
+            Filter for metrics values, defines the list of facilities and metrics to retrieve.
+        interval : int, optional
+            Sampling interval in seconds, by default 60.
+        aggregate_by: List of strings, optional.
+            Aggregation function to use over the interval, defaults to "avg".
+            Available agg functions are listed in the /models.AggregateBy class.
+            Note that the supported aggregation functions will vary by metric source.
+        flatten : bool, optional
+            If True, returns a flattened list of DetailedMetricValue objects.
+            If False, returns the nested structure dict[str, list[MetricValues]].
+
+        Returns
+        -------
+        Union[Dict[str, List[MetricsValues]], List[DetailedMetricValue]]
+            If flatten=False: Dictionary of metrics values time series indexed by facility short name.
+            If flatten=True: List of DetailedMetricValue objects with all metric details.
+
+        Raises
+        ------
+        Exception
+            Raised if an error occurs.
+        """
+        return self.read(
+            filter=filter,
+            start=datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0),
+            end=datetime.now(UTC).replace(hour=23, minute=59, second=59, microsecond=0),
+            interval=interval,
+            aggregate_by=aggregate_by,
+            flatten=flatten,
+        )
 
     def read(
         self,
@@ -236,7 +281,7 @@ class MetricsReader:
 
     def _get_devices(self, facility: Facility, agent_id: str) -> list[Device]:
         try:
-            return self.client.list_devices(facility.organization_id, agent_id)
+            return self.client.list_devices(facility.organization_id, agent_id=agent_id)
         except Exception as e:
             raise Exception(f"Error listing devices for facility {facility.display_name}: {e}")
 
@@ -331,7 +376,7 @@ class MetricsReader:
             device = device_id_to_device[construct_id_to_device_id[source_id]]
             device_kind = DeviceKind(device.kind)
 
-            timestamp = parse_dt(reading_source_result.time)
+            timestamp = parse_dt(reading_source_result.time, "UTC")
             if timestamp is None:
                 raise ValueError(f"Could not parse timestamp {reading_source_result.time}")
 
@@ -368,7 +413,7 @@ class MetricsReader:
             device = device_id_to_device[construct_id_to_device_id[source_id]]
             device_kind = DeviceKind(device.kind)
 
-            timestamp = parse_dt(setting_source_result.time)
+            timestamp = parse_dt(setting_source_result.time, "UTC")
             if timestamp is None:
                 raise ValueError(f"Could not parse timestamp {setting_source_result.time}")
 

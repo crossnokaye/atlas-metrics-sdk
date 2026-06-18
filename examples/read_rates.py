@@ -36,7 +36,7 @@ if json_output:
     )
     sys.exit(0)
 
-for facility, rates in rates_result.items():
+for facility, rates in zip(facilities, rates_result, strict=True):
     print(f"{facility.capitalize()}")
     print_rates("Usage Rate", rates.usage_rate)
     print_rates("Maximum Demand Charge", rates.maximum_demand_charge)

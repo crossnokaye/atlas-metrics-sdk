@@ -75,7 +75,7 @@ class AtlasClient:
 
         return [Facility(**facility) for facility in facilities]
 
-    def list_devices(self, org_id: str, agent_id: str) -> list[Device]:
+    def list_devices(self, org_id: str, *, agent_id: str, include_inactive: bool = False) -> list[Device]:
         """
         List all devices for a given facility.
 
@@ -85,6 +85,8 @@ class AtlasClient:
             organization ID associated with the facility as returned by list_facilities
         agent_id : str
             agent ID associated with the facility as returned by list_facilities
+        include_inactive : bool, optional
+            Include inactive devices in the returned collection.
 
         Returns
         -------
@@ -97,9 +99,10 @@ class AtlasClient:
             Raised if an error occurs while making the request
         """
         url = f"/orgs/{org_id}/agents/{agent_id}/controlled-devices"
+        params = {"include_inactive": include_inactive}
 
         try:
-            response = self.client.request("GET", url)
+            response = self.client.request("GET", url, params=params)
             controlled_devices = response.json()
         except ValueError as e:
             raise AtlasHTTPError(f"{e}, got {response}", response=response)
@@ -138,7 +141,6 @@ class AtlasClient:
         interval: int = 60,
         changes_only: bool = False,
         include_scaled: bool = True,
-        include_raw: bool = False,
     ) -> list[ReadingSourceResult]:
         """
         Get historical reading values. A single request may return results for multiple sources
@@ -162,9 +164,6 @@ class AtlasClient:
             true when only changed values should be returned
         include_scaled : bool, optional
             return scaled values for numeric sources, by default True
-        include_raw : bool, optional
-            return raw values for numeric sources, by default False
-
         Returns
         -------
         List[ReadingSourceResult]
@@ -202,7 +201,6 @@ class AtlasClient:
             "interval": interval,
             "changes_only": changes_only,
             "include_scaled": include_scaled,
-            "include_raw": include_raw,
             # ensure models/enums are JSON-serializable
             "queries": [q.model_dump(mode="json", exclude_none=True) for q in queries],
         }
@@ -246,7 +244,7 @@ class AtlasClient:
         end: datetime | None = None,
         queries: list[HistoricalSettingQuery] | None = None,
         interval: str = "1m",
-        changes_only: bool = False,
+        changes_only: bool = True,
     ) -> list[SettingSourceResult]:
         """
         Get historical setting values. A single request may return results for multiple sources

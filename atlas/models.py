@@ -19,6 +19,23 @@ class Facility(BaseModel):
     agents: list[Agent]
 
 
+class FacilitySummary(BaseModel):
+    short_name: str
+    display_name: str
+    agent_count: int
+
+
+def summarize_facilities(facilities: list[Facility]) -> list[FacilitySummary]:
+    return [
+        FacilitySummary(
+            short_name=facility.short_name,
+            display_name=facility.display_name,
+            agent_count=len(facility.agents),
+        )
+        for facility in facilities
+    ]
+
+
 class Connection(BaseModel):
     device_id: str
     kind: str
@@ -112,18 +129,12 @@ class Device(BaseModel):
     downstream: list[Connection] = []
 
 
-class AnalogValues(BaseModel):
-    timestamps: list[int]
-    values: list[float]
-
-
 class DiscreteValues(BaseModel):
     timestamps: list[int]
     values: list[bool]
 
 
 class PointValues(BaseModel):
-    analog: AnalogValues | None = None
     discrete: DiscreteValues | None = None
 
 
