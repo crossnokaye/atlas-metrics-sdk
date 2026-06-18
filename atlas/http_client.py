@@ -3,16 +3,10 @@ import tomllib
 from datetime import UTC, datetime, timedelta
 from os import environ
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from urllib.parse import urljoin
 
 import requests
-
-if TYPE_CHECKING:
-    from http.cookiejar import CookieJar
-
-    import requests._types as _t
-    from requests.cookies import RequestsCookieJar
 
 
 class AtlasConfigError(Exception):
@@ -193,35 +187,28 @@ class AtlasHTTPClient(requests.Session):
                 )
             self._user_id = user_id
 
-    def request(
-        self,
-        method: str,
-        url: "_t.UriType",
-        params: "_t.ParamsType" = None,
-        data: "_t.DataType" = None,
-        headers: "_t.HeadersType" = None,
-        cookies: "RequestsCookieJar | CookieJar | dict[str, str] | None" = None,
-        files: "_t.FilesType" = None,
-        auth: "_t.AuthType" = None,
-        timeout: "_t.TimeoutType" = None,
-        allow_redirects: bool = True,
-        proxies: dict[str, str] | None = None,
-        hooks: "_t.HooksInputType | None" = None,
-        stream: bool | None = None,
-        verify: "_t.VerifyType | None" = None,
-        cert: "_t.CertType" = None,
-        json: "_t.JsonType" = None,
-    ) -> requests.Response:
+    def request(self, method: str, url: str, **kwargs: Any) -> requests.Response:  # type: ignore[override]
         """
         Make an HTTP request to the ATLAS API with the provided method and URL.
 
-        Behaves like :meth:`requests.Session.request`, with three addition:
+        Behaves like :meth:`requests.Session.request`, with three additions:
 
         - ``url`` is resolved relative to the Atlas API prefix.
         - A bearer ``Authorization`` header is injected (refreshing the
           access token first if it is near expiry).
         - HTTP error responses are raised as :class:`AtlasHTTPError`, whose
           message includes the response body.
+
+        Parameters
+        ----------
+        method : str
+            HTTP method, e.g. GET, POST, PUT, DELETE
+        url : str
+            URL to request
+
+        Returns
+        -------
+        requests.Response
 
         Raises
         ------
@@ -233,27 +220,8 @@ class AtlasHTTPClient(requests.Session):
             self.refresh_access_token()
 
             # call the underlying request method
-            headers = dict(headers) if headers else {}
-            headers[self.AUTHORIZATION] = f"{self.BEARER} {self._access_token}"
-            url_str = url.decode("utf-8") if isinstance(url, bytes) else url
-            response = super().request(
-                method,
-                self._api_url_prefix + url_str,
-                params=params,
-                data=data,
-                headers=headers,
-                cookies=cookies,
-                files=files,
-                auth=auth,
-                timeout=timeout,
-                allow_redirects=allow_redirects,
-                proxies=proxies,
-                hooks=hooks,
-                stream=stream,
-                verify=verify,
-                cert=cert,
-                json=json,
-            )
+            kwargs[self.HEADERS] = {self.AUTHORIZATION: f"{self.BEARER} {self._access_token}"}
+            response = super().request(method, self._api_url_prefix + url, **kwargs)
             response.raise_for_status()
         except requests.HTTPError as ex:
             ex_response = ex.response
