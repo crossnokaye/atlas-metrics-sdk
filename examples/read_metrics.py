@@ -1,12 +1,14 @@
 import argparse
 import os
 import sys
+from typing import cast
 
 import orjson
 from pydantic import BaseModel
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from atlas import CompressorMetric, DeviceKind, DeviceMetric, Filter, MetricsReader, MetricType
+from atlas import CompressorMetric, DetailedMetricValue, DeviceKind, DeviceMetric, Filter, MetricsReader, MetricType
+from atlas.metrics import MetricValues
 from atlas.time_helpers import parse_dt
 
 """
@@ -45,7 +47,11 @@ end_time = parse_dt(args.end) if args.end else None
 device_kind_compressor = DeviceKind.compressor
 metric_name = CompressorMetric.suction_pressure
 
-compressor_suction_pressure = DeviceMetric(device_kind=device_kind_compressor, name=metric_name)
+compressor_suction_pressure = DeviceMetric(
+    device_kind=device_kind_compressor,
+    name=metric_name,
+    metric_type=MetricType.control_point,
+)
 motor_current = DeviceMetric(
     device_kind=device_kind_compressor,
     metric_type=MetricType.control_point,
@@ -73,12 +79,14 @@ if json_output:
 
 if flatten:
     # Handle flattened format
-    for item in values:
+    flattened_values = cast(list[DetailedMetricValue], values)
+    for item in flattened_values:
         print(f"{item.facility.capitalize()} - {item.device_name} - {item.metric.name}")
         print(f"  {item.timestamp}: {item.value}")
 else:
     # Handle nested format
-    for facility, metrics_values in values.items():
+    nested_values = cast(dict[str, list[MetricValues]], values)
+    for facility, metrics_values in nested_values.items():
         print(facility.capitalize())
         for metric_values in metrics_values:
             if len(metric_values.values) == 0:

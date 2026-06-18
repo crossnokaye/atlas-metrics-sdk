@@ -123,8 +123,8 @@ class DiscreteValues(BaseModel):
 
 
 class PointValues(BaseModel):
-    analog: AnalogValues = None
-    discrete: DiscreteValues = None
+    analog: AnalogValues | None = None
+    discrete: DiscreteValues | None = None
 
 
 class AggregateBy(StrEnum):
@@ -307,7 +307,7 @@ class VesselMetric(StrEnum):
     pressure = "Pressure"
 
 
-def construct_from_metric_name(metric_name: str, device_kind: DeviceKind) -> MetricType:
+def construct_from_metric_name(metric_name: str, device_kind: DeviceKind) -> MetricType | None:
     # Currently all the metrics are control points
     if metric_name in [e.value for e in device_metric_mapping[device_kind]]:
         return MetricType.control_point
@@ -333,7 +333,7 @@ class DeviceMetric(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def auto_fill_metric_type(cls, values: Any) -> dict[str, Any]:
+    def auto_fill_metric_type(cls, values: Any) -> Any:
         """
         Auto-fill metric_type based on device_kind and name if not provided.
         Only does lookup when name is provided (not when using alias_regex).

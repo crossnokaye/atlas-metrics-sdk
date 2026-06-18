@@ -9,6 +9,7 @@ from atlas.models import (
     AggregateBy,
     ControlledDeviceConstruct,
     Device,
+    DeviceKind,
     DeviceMetric,
     Facility,
     HistoricalReadingQuery,
@@ -117,7 +118,7 @@ class MetricsReader:
         if not filter.metrics:
             raise Exception("No metrics provided")
 
-        metrics_by_device_kind = defaultdict(list)
+        metrics_by_device_kind: defaultdict[DeviceKind, list[DeviceMetric]] = defaultdict(list)
         for metric in filter.metrics:
             if not is_valid_metric(metric):
                 raise Exception(f"Invalid metrics type {metric}")
@@ -125,7 +126,7 @@ class MetricsReader:
 
         facilities = self.client.filter_facilities(filter.facilities)
 
-        result = defaultdict(list)
+        result: defaultdict[str, list[MetricValues]] = defaultdict(list)
         for facility in facilities:
             agent_id = facility.agents[0].agent_id
             devices = self._get_devices(facility, agent_id)
@@ -141,7 +142,11 @@ class MetricsReader:
 
             for device in devices:
                 device_id_to_device[device.id] = device
-                metrics_filter = metrics_by_device_kind[device.kind]
+                try:
+                    device_kind = DeviceKind(device.kind)
+                except ValueError:
+                    continue
+                metrics_filter = metrics_by_device_kind[device_kind]
                 if not metrics_filter:
                     continue
 
@@ -318,72 +323,80 @@ class MetricsReader:
         # Results are ordered by timestamp, but are not grouped by source
         # Group readings by (device_id, source_alias, metric_type, aggregation)
         # only using avg for now, but be flexible
-        grouped: dict[tuple[str, str, str, str], dict] = {}
+        grouped: dict[tuple[str, str, MetricType, str], MetricValues] = {}
 
-        for source_result in reading_results:
-            source_id = source_result.source_id
+        for reading_source_result in reading_results:
+            source_id = reading_source_result.source_id
             source = filtered_constructs_by_id[source_id]
             device = device_id_to_device[construct_id_to_device_id[source_id]]
+            device_kind = DeviceKind(device.kind)
 
-            timestamp = parse_dt(source_result.time)
+            timestamp = parse_dt(reading_source_result.time)
+            if timestamp is None:
+                raise ValueError(f"Could not parse timestamp {reading_source_result.time}")
 
-            for res in source_result.results:
-                aggregation_key = str(res.aggregation) if res.aggregation else "avg"
+            for reading_result in reading_source_result.results:
+                if reading_result.numberValue is None or reading_result.numberValue.scaled is None:
+                    continue
+                aggregation_key = str(reading_result.aggregation) if reading_result.aggregation else "avg"
                 group_key = (device.id, source.id, source.metric_type, aggregation_key)
 
                 if group_key not in grouped:
-                    grouped[group_key] = {
-                        "metric": DeviceMetric(
+                    grouped[group_key] = MetricValues(
+                        metric=DeviceMetric(
                             name=source.alias,
-                            device_kind=device.kind,
+                            device_kind=device_kind,
                             metric_type=source.metric_type,
                         ),
-                        "device_name": device.name,
-                        "device_alias": device.alias,
-                        "device_id": device.id,
-                        "aggregation": aggregation_key,
-                        "values": [],
-                    }
+                        device_name=device.name,
+                        device_alias=device.alias,
+                        device_id=device.id,
+                        aggregation=aggregation_key,
+                        values=[],
+                    )
 
-                grouped[group_key]["values"].append(
+                grouped[group_key].values.append(
                     MetricValue(
                         timestamp=timestamp,
-                        value=res.numberValue.scaled if res.numberValue else None,
+                        value=reading_result.numberValue.scaled,
                     ),
                 )
 
-        for source_result in setting_results:
-            source_id = source_result.setting_id
+        for setting_source_result in setting_results:
+            source_id = setting_source_result.setting_id
             source = filtered_constructs_by_id[source_id]
             device = device_id_to_device[construct_id_to_device_id[source_id]]
+            device_kind = DeviceKind(device.kind)
 
-            timestamp = parse_dt(source_result.time)
+            timestamp = parse_dt(setting_source_result.time)
+            if timestamp is None:
+                raise ValueError(f"Could not parse timestamp {setting_source_result.time}")
 
-            for res in source_result.results:
-                aggregation_key = str(res.aggregation) if res.aggregation else "avg"
+            for setting_result in setting_source_result.results:
+                aggregation_key = str(setting_result.aggregation) if setting_result.aggregation else "avg"
                 group_key = (device.id, source.id, source.metric_type, aggregation_key)
 
                 if group_key not in grouped:
-                    grouped[group_key] = {
-                        "metric": DeviceMetric(
+                    grouped[group_key] = MetricValues(
+                        metric=DeviceMetric(
                             name=source.alias,
-                            device_kind=device.kind,
+                            device_kind=device_kind,
                             metric_type=source.metric_type,
                         ),
-                        "device_name": device.name,
-                        "device_alias": device.alias,
-                        "device_id": device.id,
-                        "aggregation": aggregation_key,
-                        "values": [],
-                    }
+                        device_name=device.name,
+                        device_alias=device.alias,
+                        device_id=device.id,
+                        aggregation=aggregation_key,
+                        values=[],
+                    )
 
-                if res.numberValue:
-                    grouped[group_key]["values"].append(
+                if setting_result.numberValue is not None:
+                    grouped[group_key].values.append(
                         MetricValue(
                             timestamp=timestamp,
-                            value=res.numberValue,
+                            value=setting_result.numberValue,
                         ),
                     )
 
-        for _, mv in grouped.items():
-            result[facility.short_name].append(MetricValues(**mv))
+        for mv in grouped.values():
+            result[facility.short_name].append(mv)
