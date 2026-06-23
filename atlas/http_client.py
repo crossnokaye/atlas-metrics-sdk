@@ -34,6 +34,16 @@ class AtlasHTTPError(requests.HTTPError):
         self.response = response
 
 
+class QueryLimitExceededError(AtlasHTTPError):
+    """Raised when a readings query exceeds the supported interval/range/source/retention limits."""
+
+    def __init__(self, message: str, response: requests.Response | None = None) -> None:
+        super().__init__(
+            f"{message}\nSee the atlas-metrics-sdk README.md for more information.",
+            response=response,
+        )
+
+
 class AtlasHTTPClient(requests.Session):
     BASE_URL = "https://atlaslive.io"
     LOGIN_ENDPOINT = "/api/login/v3/login"
@@ -226,6 +236,17 @@ class AtlasHTTPClient(requests.Session):
         except requests.HTTPError as ex:
             ex_response = ex.response
             if ex_response is not None:
+                # Map the Goa query-limit error envelope to a typed exception.
+                if ex_response.status_code == 400:
+                    try:
+                        body = ex_response.json()
+                    except ValueError:
+                        body = None
+                    if isinstance(body, dict) and body.get("name") == "query_limit_exceeded":
+                        raise QueryLimitExceededError(
+                            f"Query exceeds supported limits: {body.get('message', '')}",
+                            response=ex_response,
+                        ) from ex
                 raise AtlasHTTPError(f"{ex} - {ex_response.text}", response=ex_response) from ex
             else:
                 raise AtlasHTTPError(f"{ex} - No additional detail received") from ex

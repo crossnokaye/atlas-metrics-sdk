@@ -141,6 +141,45 @@ interval = 60  # 1 minute interval
 data = MetricsReader().read(filter, start=start_time, end=end_time, interval=interval)
 ```
 
+### Metrics Query Limits
+
+Metrics queries are subject to limits to help ensure reliable access to metrics data.
+Applications which require spans of data which exceed limits can break their query
+down into multiple queries, each with a shorter time span.
+
+The supported sampling `interval` is limited by three factors:
+
+- the query time range (`end` - `start`)
+- the number of requested sources (not the number of aggregations applied to each source)
+- the retention for the requested interval
+
+The following table details supported combinations of time range, number of
+sources, and retention. Retention defines the maximum age of the data that can
+be queried — the query's `start` may not come before the retention period.
+
+| Interval | Max Time Range (<= 10 sources) | Max Time Range (> 10 sources) | Retention |
+| --- | --- | --- | --- |
+| 1s | 1h | 5m | 31d |
+| 5s | 6h | 30m | 31d |
+| 10s | 12h | 1h | 31d |
+| 15s | 12h | 2h | 31d |
+| 1m | 1d | 6h | 365d |
+| 5m | 7d | 1d | 365d |
+| 15m | 32d | 4d | 731d |
+| 30m | 92d | 7d | 731d |
+| 1h | 183d | 14d | 731d |
+| 12h | 731d | 192d | 731d |
+| 1d | 731d | 366d | 731d |
+
+For example, if an application requires 1m resolution data for 50 sources at a
+time, the query's maximum time range is 7d and the `start` of the query cannot be
+more than 365 days ago. If an application requires only 24h resolution for a
+single data source, the query's time range can be up to 365 days, and may start
+as far back as 730 days ago.
+
+Raw data from more than 31 days ago is not supported (time range limits also
+apply to queries for raw data).
+
 ## High-Level API: RatesReader
 
 The `RatesReader` class provides a simplified interface for retrieving hourly energy rates.
