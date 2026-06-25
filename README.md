@@ -302,6 +302,18 @@ Mypy is used to perform static type checking on the source code. The Mypy check 
 mypy
 ```
 
+### API Changes Detection
+
+[Griffe](https://github.com/mkdocstrings/griffe) checks the public API surface for breaking changes against a baseline branch. This is used to monitor SemVer compliance on release and identify potentially breaking changes before they are merged.
+
+The pull request CI pipeline runs Griffe and publishes a detailed summary. This check is intentionally non-blocking: it reports API changes but never prevents a merge, leaving final design and compatibility decisions to the developer and reviewers.
+
+Griffe can be run to check the atlas package against a branch or git ref.
+
+```bash
+griffe check atlas --search . --against origin/main
+```
+
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.

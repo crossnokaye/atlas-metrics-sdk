@@ -3,3 +3,4 @@ types-requests
 pytest
 ruff
 mypy
+griffe~=2.1.0
