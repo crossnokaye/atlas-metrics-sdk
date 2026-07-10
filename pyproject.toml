@@ -24,6 +24,7 @@ dev = [
 ]
 
 [tool.coverage.run]
+branch = true
 source = ["atlas"]
 
 [tool.coverage.paths]
@@ -43,6 +44,9 @@ files = ["atlas", "examples", "tests"]
 strict = true
 warn_unreachable = true
 explicit_package_bases = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 120
