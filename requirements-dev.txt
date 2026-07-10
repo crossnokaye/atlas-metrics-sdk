@@ -1,6 +1,0 @@
--r requirements.txt
-types-requests
-pytest
-ruff
-mypy
-griffe~=2.1.0

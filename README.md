@@ -21,7 +21,7 @@ simplifies usage, while the low-level API offers more flexibility and control.
     cd atlas-metrics-sdk
     ```
 
-2. Create a virtual environment and install the dependencies:
+2. Create a virtual environment and install the library and dependencies:
 
     ```bash
     python3 -m venv .venv
@@ -264,12 +264,12 @@ Contributions are welcome! Please submit a pull request or open an issue to disc
 
 ### Environment Setup
 
-Follow setup in [Installation](#installation), but when creating a virtual environment, install the dev dependencies:
+Create a virtual environment and install the library as editable and install dev dependencies:
 
  ```bash
  python3 -m venv .venv
  source .venv/bin/activate
- pip install -r requirements-dev.txt
+ pip install -e . --group dev
  ```
 
 ### Linting
@@ -301,6 +301,21 @@ Mypy is used to perform static type checking on the source code. The Mypy check 
 ```bash
 mypy
 ```
+
+### Testing
+
+Pytest is used to run the test suite. The test suite is required to pass before
+merging a pull request. Coverage is calculated and reported with pytest-cov.
+
+```bash
+pytest --cov=atlas
+```
+
+CI runs tests across Python **3.11–3.14** with two dependency profiles: **min**
+installs the pinned floor from `requirements.txt`; **max** installs the latest
+compatible releases within the bounds declared in `pyproject.toml`. Local
+development typically uses `pip install -e . --group dev`, which is editable and
+not identical to the CI min install.
 
 ### API Changes Detection
 
