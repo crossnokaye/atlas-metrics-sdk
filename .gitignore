@@ -6,6 +6,7 @@ __pycache__/
 .venv/
 .ruff_cache/
 .mypy_cache/
+/.coverage
 
 # Ignore .DS_Store files
 .DS_Store

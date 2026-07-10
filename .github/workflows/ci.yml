@@ -20,7 +20,7 @@ env:
   GIT_CONFIG_VALUE_0: https://github.com
   GIT_CONFIG_KEY_1: url.https://crossnokaye-robot:${{ secrets.ROBOT_TOKEN }}@github.com.insteadOf
   GIT_CONFIG_VALUE_1: ssh://git@github.com
-  PYTHON_VERSION: "3.11"
+  PYTHON_MIN_VERSION: "3.11"
 
 jobs:
   type-check:
@@ -32,11 +32,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
+          python-version: ${{ env.PYTHON_MIN_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
 
       - name: Install dependencies
-        run: pip install -r requirements-dev.txt
+        run: pip install -r requirements.txt --group dev
 
       - name: Cache Mypy
         uses: actions/cache@v5
@@ -50,6 +53,7 @@ jobs:
 
       - name: Run Mypy
         run: mypy
+
   linting:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -68,12 +72,15 @@ jobs:
         if: steps.changed-files.outputs.any_changed == 'true'
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ env.PYTHON_MIN_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
 
       - name: Install dependencies
         if: steps.changed-files.outputs.any_changed == 'true'
-        run: |
-          pip install ruff
+        run: pip install -r requirements.txt --group dev
 
       - name: Run ruff check
         if: steps.changed-files.outputs.any_changed == 'true'
@@ -85,6 +92,54 @@ jobs:
         if: steps.changed-files.outputs.any_changed == 'true'
         run: |
           ruff format --check --diff ${{ steps.changed-files.outputs.all_changed_files }}
+
+  test:
+    name: test (python ${{ matrix.python-version }}, ${{ matrix.deps }} dependencies)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { python-version: "3.11", deps: min }
+          - { python-version: "3.12", deps: min }
+          - { python-version: "3.13", deps: min }
+          - { python-version: "3.14", deps: min }
+          - { python-version: "3.11", deps: latest }
+          - { python-version: "3.14", deps: latest }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
+
+      - name: Install dependencies (min)
+        if: matrix.deps == 'min'
+        run: pip install -r requirements.txt --group dev
+
+      - name: Install dependencies (latest)
+        if: matrix.deps == 'latest'
+        run: pip install . --group dev
+
+      - name: Log resolved versions
+        run: pip freeze | sort
+
+      - name: Run Unit Tests
+        run: pytest --cov=atlas --cov-report=xml:coverage-unit.xml
+
+      - name: Upload Unit Test Coverage
+        if: matrix.python-version == env.PYTHON_MIN_VERSION && matrix.deps == 'min'
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage-unit.xml
+          flags: unit-tests
 
   api-compatibility:
     if: github.event_name == 'pull_request'
@@ -101,11 +156,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ env.PYTHON_MIN_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
 
       - name: Install dependencies
-        run: |
-          pip install "griffe~=2.1.0"
+        run: pip install -r requirements.txt --group dev
 
       - name: Generate report
         id: generate-report

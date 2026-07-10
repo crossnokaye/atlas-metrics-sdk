@@ -9,6 +9,25 @@ description = "Python API Client for retrieving metric point values from the Atl
 requires-python = ">=3.11"
 dependencies = ["httpx", "orjson", "pydantic", "requests"]
 
+[dependency-groups]
+dev = [
+    "types-requests<2.34.0.0",  # The 'requests' package includes type annotations and stubs since version 2.34.0
+    "pytest==9.1.*",
+    "pytest-cov==7.1.*",
+    "ruff==0.15.*",
+    "mypy==2.2.*",
+    "griffe==2.1.*",
+]
+
+[tool.coverage.run]
+source = ["atlas"]
+
+[tool.coverage.paths]
+source = [
+    "atlas",
+    "*/site-packages/atlas_metrics",
+]
+
 [tool.hatch.build.targets.sdist]
 exclude = ["/examples"]
 
@@ -16,7 +35,7 @@ exclude = ["/examples"]
 packages = ["atlas"]
 
 [tool.mypy]
-files = ["atlas", "examples"]
+files = ["atlas", "examples", "tests"]
 strict = true
 warn_unreachable = true
 explicit_package_bases = true
