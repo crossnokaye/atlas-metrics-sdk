@@ -139,21 +139,23 @@ jobs:
         run: pytest --cov --cov-report=xml:coverage-unit.xml --junitxml=junit-unit.xml -o junit_family=legacy
 
       - name: Upload coverage to Codecov
-        if: always() && matrix.python-version == env.PYTHON_MIN_VERSION && matrix.deps == 'min' && hashFiles('coverage-unit.xml') != ''
+        if: ${{ !cancelled() && matrix.python-version == env.PYTHON_MIN_VERSION && matrix.deps == 'min' && hashFiles('coverage-unit.xml') != '' }}
         uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          disable_search: true
           files: ./coverage-unit.xml
           flags: unit-tests
           report_type: coverage
       - name: Upload test results to Codecov
-        if: always() && matrix.python-version == env.PYTHON_MIN_VERSION && matrix.deps == 'min' && hashFiles('junit-unit.xml') != ''
+        if: ${{ !cancelled() && matrix.python-version == env.PYTHON_MIN_VERSION && matrix.deps == 'min' && hashFiles('junit-unit.xml') != '' }}
         uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          disable_search: true
           files: ./junit-unit.xml
           flags: unit-tests
-          report-type: test_results
+          report_type: test_results
 
   api-compatibility:
     if: github.event_name == 'pull_request'
