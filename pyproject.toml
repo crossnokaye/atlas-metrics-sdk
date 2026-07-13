@@ -27,12 +27,6 @@ dev = [
 branch = true
 source = ["atlas"]
 
-[tool.coverage.paths]
-source = [
-    "atlas",
-    "*/site-packages/atlas_metrics",
-]
-
 [tool.hatch.build.targets.sdist]
 exclude = ["/examples"]
 

@@ -1,4 +1,4 @@
-.
+-e .
 orjson==3.11.1
 pydantic==2.12.4
 requests==2.32.5
