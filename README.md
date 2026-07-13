@@ -312,10 +312,10 @@ pytest --cov=atlas
 ```
 
 CI runs tests across Python **3.11–3.14** with two dependency profiles: **min**
-installs the pinned floor from `requirements.txt`; **max** installs the latest
+installs the pinned floor from `requirements.txt`; **latest** installs the latest
 compatible releases within the bounds declared in `pyproject.toml`. Local
 development typically uses `pip install -e . --group dev`, which is editable and
-not identical to the CI min install.
+not identical to the CI install.
 
 ### API Changes Detection
 
