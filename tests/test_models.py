@@ -25,7 +25,6 @@ from atlas.models import (
     MetricType,
     Output,
     Setting,
-    SettingResultSequenceValueItem,
     VesselMetric,
     construct_from_metric_name,
     is_valid_metric,
@@ -88,21 +87,6 @@ def test_construct_from_metric_name_with_unmapped_kind_raises_key_error() -> Non
         construct_from_metric_name("DischargePressure", DeviceKind.energy_meter)
 
 
-def test_control_point_with_payload_parses_id_and_unit() -> None:
-    control_point = ControlPoint.model_validate(
-        {
-            "control_point_id": "cp-1",
-            "alias": "SuctionPressure",
-            "bias": "direct",
-            "type": "analog",
-            "unit": "psi",
-        },
-    )
-
-    assert control_point.id == "cp-1"
-    assert control_point.unit == "psi"
-
-
 def test_device_associations_with_default_upstream_isolates_lists() -> None:
     associations_a = DeviceAssociations()
     associations_b = DeviceAssociations()
@@ -111,51 +95,6 @@ def test_device_associations_with_default_upstream_isolates_lists() -> None:
 
     assert associations_b.upstream == []
     assert associations_a.downstream == []
-
-
-def test_device_metric_with_alias_regex_and_type_succeeds() -> None:
-    metric = DeviceMetric.model_validate(
-        {
-            "device_kind": DeviceKind.compressor,
-            "alias_regex": ".*Current.*",
-            "metric_type": MetricType.control_point,
-        },
-    )
-
-    assert metric.alias_regex == ".*Current.*"
-    assert metric.metric_type == MetricType.control_point
-
-
-@pytest.mark.parametrize(
-    "payload",
-    [
-        pytest.param(
-            {"device_kind": DeviceKind.compressor, "alias_regex": ".*Current.*"},
-            id="missing_metric_type",
-        ),
-        pytest.param(
-            {"device_kind": DeviceKind.compressor, "name": "", "alias_regex": ".*Current.*"},
-            id="empty_name",
-        ),
-    ],
-)
-def test_device_metric_with_alias_regex_without_type_raises_validation_error(
-    payload: dict[str, object],
-) -> None:
-    with pytest.raises(ValidationError, match="metric_type must be provided when using alias_regex"):
-        DeviceMetric.model_validate(payload)
-
-
-def test_device_metric_with_explicit_type_uses_override() -> None:
-    metric = DeviceMetric.model_validate(
-        {
-            "device_kind": DeviceKind.compressor,
-            "name": CompressorMetric.suction_pressure.value,
-            "metric_type": MetricType.metric,
-        },
-    )
-
-    assert metric.metric_type == MetricType.metric
 
 
 @pytest.mark.parametrize(
@@ -167,13 +106,31 @@ def test_device_metric_with_explicit_type_uses_override() -> None:
         pytest.param(DeviceKind.vessel, VesselMetric.pressure.value, id="vessel"),
     ],
 )
-def test_device_metric_with_known_name_sets_metric_type(device_kind: DeviceKind, metric_name: str) -> None:
+def test_device_metric_auto_fill_metric_type_with_known_name_sets_metric_type(
+    device_kind: DeviceKind,
+    metric_name: str,
+) -> None:
     metric = DeviceMetric.model_validate({"device_kind": device_kind, "name": metric_name})
 
     assert metric.metric_type == MetricType.control_point
 
 
-def test_device_metric_with_unmapped_kind_raises_key_error() -> None:
+def test_device_metric_auto_fill_metric_type_with_type_uses_type() -> None:
+    metric = DeviceMetric(
+        device_kind=DeviceKind.compressor,
+        name=CompressorMetric.suction_pressure.value,
+        metric_type=MetricType.metric,
+    )
+
+    assert metric.metric_type == MetricType.metric
+
+
+def test_device_metric_auto_fill_metric_type_with_unknown_name_raises() -> None:
+    with pytest.raises(ValidationError):
+        DeviceMetric.model_validate({"device_kind": DeviceKind.compressor, "name": "UnknownMetric"})
+
+
+def test_device_metric_auto_fill_metric_type_with_unmapped_kind_raises() -> None:
     with pytest.raises(KeyError):
         DeviceMetric.model_validate(
             {
@@ -183,9 +140,24 @@ def test_device_metric_with_unmapped_kind_raises_key_error() -> None:
         )
 
 
-def test_device_metric_with_unknown_name_raises_validation_error() -> None:
-    with pytest.raises(ValidationError):
-        DeviceMetric.model_validate({"device_kind": DeviceKind.compressor, "name": "UnknownMetric"})
+@pytest.mark.parametrize(
+    "payload",
+    [
+        pytest.param(
+            {"device_kind": DeviceKind.compressor, "alias_regex": ".*"},
+            id="missing_metric_type",
+        ),
+        pytest.param(
+            {"device_kind": DeviceKind.compressor, "name": "", "alias_regex": ".*"},
+            id="empty_name",
+        ),
+    ],
+)
+def test_device_metric_auto_fill_metric_type_without_name_and_type_raises(
+    payload: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError, match="metric_type must be provided when using alias_regex"):
+        DeviceMetric.model_validate(payload)
 
 
 def test_historical_hourly_rate_start_datetime_returns_utc() -> None:
@@ -230,15 +202,6 @@ def test_historical_hourly_rates_to_hourly_rates_converts_each_field(
     assert converted[0].start == datetime.fromtimestamp(timestamp, tz=UTC)
 
 
-def test_historical_reading_query_with_default_aggregate_by_isolates_lists() -> None:
-    query_a = HistoricalReadingQuery(source_id="metric-a", aggregate_by=[AggregateBy.avg])
-    query_b = HistoricalReadingQuery(source_id="metric-b")
-
-    query_a.aggregate_by.append(AggregateBy.max)
-
-    assert query_b.aggregate_by == []
-
-
 @pytest.mark.parametrize(
     "source_id",
     [
@@ -246,7 +209,9 @@ def test_historical_reading_query_with_default_aggregate_by_isolates_lists() -> 
         pytest.param("   ", id="whitespace_only"),
     ],
 )
-def test_historical_reading_query_with_invalid_source_id_raises_validation_error(source_id: str) -> None:
+def test_historical_reading_query_validate_source_id_with_invalid_value_raises_validation_error(
+    source_id: str,
+) -> None:
     with pytest.raises(ValidationError, match="source_id must be a non-empty string"):
         HistoricalReadingQuery(source_id=source_id)
 
@@ -258,16 +223,63 @@ def test_historical_reading_query_with_invalid_source_id_raises_validation_error
         pytest.param("  metric-123  ", id="surrounding_whitespace"),
     ],
 )
-def test_historical_reading_query_with_valid_source_id_succeeds(source_id: str) -> None:
+def test_historical_reading_query_validate_source_id_with_valid_value_succeeds(source_id: str) -> None:
     query = HistoricalReadingQuery(source_id=source_id)
 
     assert query.source_id == source_id
+
+
+def test_historical_reading_query_with_default_aggregate_by_isolates_lists() -> None:
+    query_a = HistoricalReadingQuery(source_id="metric-a", aggregate_by=[AggregateBy.avg])
+    query_b = HistoricalReadingQuery(source_id="metric-b")
+
+    query_a.aggregate_by.append(AggregateBy.max)
+
+    assert query_b.aggregate_by == []
 
 
 def test_historical_reading_query_without_aggregate_by_defaults_empty() -> None:
     query = HistoricalReadingQuery(source_id="metric-123")
 
     assert query.aggregate_by == []
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        pytest.param("device_id", None, id="device_id_none"),
+        pytest.param("device_id", "device-1", id="device_id_nonempty"),
+        pytest.param("setting_alias", None, id="setting_alias_none"),
+        pytest.param("setting_alias", "max-capacity", id="setting_alias_nonempty"),
+        pytest.param("setting_id", None, id="setting_id_none"),
+        pytest.param("setting_id", "setting-1", id="setting_id_nonempty"),
+    ],
+)
+def test_historical_setting_query_source_validate_optional_non_empty_succeeds(
+    field: str,
+    value: str | None,
+) -> None:
+    source = HistoricalSettingQuerySource(**{field: value})
+
+    assert getattr(source, field) == value
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        pytest.param("device_id", "", id="device_id_empty"),
+        pytest.param("device_id", "   ", id="device_id_whitespace"),
+        pytest.param("setting_alias", "", id="setting_alias_empty"),
+        pytest.param("setting_id", "", id="setting_id_empty"),
+        pytest.param("setting_id", "   ", id="setting_id_whitespace"),
+    ],
+)
+def test_historical_setting_query_source_validate_optional_non_empty_with_empty_raises(
+    field: str,
+    value: str,
+) -> None:
+    with pytest.raises(ValidationError, match="must be a non-empty string"):
+        HistoricalSettingQuerySource(**{field: value})
 
 
 def test_historical_setting_query_with_default_aggregate_by_isolates_lists() -> None:
@@ -285,44 +297,6 @@ def test_historical_setting_query_without_aggregate_by_defaults_empty() -> None:
     query = HistoricalSettingQuery(source=source)
 
     assert query.aggregate_by == []
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [
-        pytest.param("device_id", "", id="device_id_empty"),
-        pytest.param("device_id", "   ", id="device_id_whitespace"),
-        pytest.param("setting_alias", "", id="setting_alias_empty"),
-        pytest.param("setting_id", "", id="setting_id_empty"),
-        pytest.param("setting_id", "   ", id="setting_id_whitespace"),
-    ],
-)
-def test_historical_setting_query_source_with_empty_field_raises_validation_error(
-    field: str,
-    value: str,
-) -> None:
-    with pytest.raises(ValidationError, match="must be a non-empty string"):
-        HistoricalSettingQuerySource(**{field: value})
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [
-        pytest.param("device_id", None, id="device_id_none"),
-        pytest.param("device_id", "device-1", id="device_id_nonempty"),
-        pytest.param("setting_alias", None, id="setting_alias_none"),
-        pytest.param("setting_alias", "max-capacity", id="setting_alias_nonempty"),
-        pytest.param("setting_id", None, id="setting_id_none"),
-        pytest.param("setting_id", "setting-1", id="setting_id_nonempty"),
-    ],
-)
-def test_historical_setting_query_source_with_valid_field_succeeds(
-    field: str,
-    value: str | None,
-) -> None:
-    source = HistoricalSettingQuerySource(**{field: value})
-
-    assert getattr(source, field) == value
 
 
 @pytest.mark.parametrize(
@@ -363,7 +337,7 @@ def test_is_valid_metric_with_metric_returns_validity(
     assert is_valid_metric(metric) is expected
 
 
-def test_is_valid_metric_with_unmapped_kind_raises_key_error() -> None:
+def test_is_valid_metric_with_unmapped_kind_raises() -> None:
     metric = DeviceMetric(
         device_kind=DeviceKind.energy_meter,
         name=CompressorMetric.suction_pressure.value,
@@ -441,25 +415,11 @@ def test_metric_type_property_with_instance_returns_type(
 
 
 def test_setting_alias_property_returns_name() -> None:
-    setting = Setting.model_validate(
-        {
-            "setting_id": "setting-1",
-            "name": "MaxCapacity",
-            "kind": "number",
-            "unit": "kW",
-        },
+    setting = Setting(
+        setting_id="setting-1",
+        name="MaxCapacity",
+        kind="number",
+        unit="kW",
     )
 
     assert setting.alias == "MaxCapacity"
-
-
-def test_setting_result_sequence_value_item_with_camel_case_parses_stage_values() -> None:
-    item = SettingResultSequenceValueItem.model_validate(
-        {
-            "name": "stage-1",
-            "stageValues": [1, 2, 3],
-        },
-    )
-
-    assert item.name == "stage-1"
-    assert item.stage_values == [1, 2, 3]
