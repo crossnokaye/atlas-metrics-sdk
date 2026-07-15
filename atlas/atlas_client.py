@@ -94,7 +94,7 @@ class AtlasClient:
         response = self.client.request("GET", url)
         try:
             facilities = response.json()
-	    return [Facility(**facility) for facility in facilities]
+            return [Facility(**facility) for facility in facilities]
         except Exception as e:
             raise AtlasHTTPError(f"{e}, got {response}", response=response)
 
