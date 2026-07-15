@@ -99,7 +99,7 @@ class AtlasClient:
             raise AtlasHTTPError(f"{e}, got {response}", response=response)
 
 
-    def list_devices(self, org_id: str, agent_id: str) -> list[Device]:
+    def list_devices(self, org_id: str, agent_id: str, extra_stuff: int) -> list[Device]:
         """
         List all devices for a given facility.
 
