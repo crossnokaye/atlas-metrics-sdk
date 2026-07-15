@@ -75,6 +75,30 @@ class AtlasClient:
 
         return [Facility(**facility) for facility in facilities]
 
+
+    def list_facilities_ex(self) -> list[Facility]:
+        """
+        List facilities the logged in user has access to.
+
+        Returns
+        -------
+        List[Facility]
+            List of facilities
+
+        Raises
+        ------
+        AtlasHTTPError
+            Raised if an error occurs while making the request
+        """
+        url = f"/users/{self.client.get_user_id()}/facilities?view=extended"
+        response = self.client.request("GET", url)
+        try:
+            facilities = response.json()
+	    return [Facility(**facility) for facility in facilities]
+        except Exception as e:
+            raise AtlasHTTPError(f"{e}, got {response}", response=response)
+
+
     def list_devices(self, org_id: str, agent_id: str) -> list[Device]:
         """
         List all devices for a given facility.
