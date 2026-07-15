@@ -18,6 +18,8 @@ dev = [
     "types-requests<2.34.0.0",  # The 'requests' package includes type annotations and stubs since version 2.34.0
     "pytest==9.1.*",
     "pytest-mock==3.15.*",
+    "requests-mock==1.10.*",
+    "pyfakefs==6.1.*",
     "pytest-cov==7.1.*",
     "ruff==0.15.*",
     "mypy==2.2.*",
