@@ -11,9 +11,15 @@ from atlas.models import Agent, Facility
 
 
 @pytest.fixture
-def mock_http_client(mocker: MockerFixture) -> Mock:
+def mock_http_client_cls(mocker: MockerFixture) -> Mock:
+    mock_http_client_cls = mocker.patch("atlas.atlas_client.AtlasHTTPClient")
+    return mock_http_client_cls
+
+
+@pytest.fixture
+def mock_http_client(mock_http_client_cls: Mock) -> Mock:
     mock_http_client = cast(Mock, create_autospec(AtlasHTTPClient, spec_set=True, instance=True))
-    mocker.patch("atlas.atlas_client.AtlasHTTPClient", return_value=mock_http_client)
+    mock_http_client_cls.return_value = mock_http_client
     return mock_http_client
 
 
@@ -22,10 +28,7 @@ def client(mock_http_client: Mock) -> AtlasClient:
     return AtlasClient()
 
 
-def test_atlas_client_init_relays_args_and_refresh_auth(mocker: MockerFixture) -> None:
-    mock_http_client = create_autospec(AtlasHTTPClient, spec_set=True, instance=True)
-    mock_http_client_cls = mocker.patch("atlas.atlas_client.AtlasHTTPClient", return_value=mock_http_client)
-
+def test_atlas_client_init_relays_args_and_refresh_auth(mock_http_client_cls: Mock, mock_http_client: Mock) -> None:
     client = AtlasClient(refresh_token="test-token", debug=True)
 
     assert client
