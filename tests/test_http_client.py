@@ -111,6 +111,8 @@ def test_http_client_request_404_raises(
 
     with pytest.raises(AtlasHTTPError, match="Test Not Found") as ex_res:
         _ = client.request("GET", "/missing")
-        assert ex_res.value.response
-        assert ex_res.value.response.status_code == 404
-        assert ex_res.value.response.text == "Test Not Found"
+
+    assert ex_res.value is not None
+    assert ex_res.value.response is not None
+    assert ex_res.value.response.status_code == 404
+    assert ex_res.value.response.text == "Test Not Found"
